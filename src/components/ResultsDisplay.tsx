@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Typography, Paper, Box, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Collapse, IconButton } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -6,6 +6,11 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } 
 import { LIKERT_LABELS, LIKERT_COLORS } from '../config';
 import { createPivotTable, calculateOverallDistribution } from '../utils/dataProcessing';
 import ResponseSummary from './ResponseSummary';
+
+// Type guard function to validate Likert labels
+function isValidLikertLabel(label: string): label is keyof typeof LIKERT_COLORS {
+  return label in LIKERT_COLORS;
+}
 
 interface ResultsDisplayProps {
   results: {
@@ -48,7 +53,12 @@ function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
           <XAxis type="number" domain={[0, 1]} tickFormatter={(value) => `${value * 100}%`} />
           <Tooltip formatter={(value) => `${(Number(value) * 100).toFixed(1)}%`} />
           {LIKERT_LABELS.map((label) => (
-            <Bar key={label} dataKey={label} stackId="a" fill={LIKERT_COLORS[label]}>
+            <Bar 
+              key={label} 
+              dataKey={label} 
+              stackId="a" 
+              fill={isValidLikertLabel(label) ? LIKERT_COLORS[label] : '#000000'}
+            >
               <LabelList dataKey={label} position="inside" formatter={(value: number) => (value > 0.05 ? `${(value * 100).toFixed(0)}%` : '')} />
             </Bar>
           ))}
@@ -66,13 +76,11 @@ function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
         <strong>Question:</strong> {results.question}
       </Typography>
 
-      {hasOpenEnded && (
-        <ResponseSummary responses={results.responses} />
-      )}
+      {hasOpenEnded && <ResponseSummary responses={results.responses} />}
 
       {hasLikert && (
         <>
-          {renderChart([overallDistribution], "Overall Distribution of Responses")}
+          {overallDistribution && renderChart([overallDistribution], "Overall Distribution of Responses")}
 
           <Box mt={4}>
             <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} centered>
@@ -82,8 +90,8 @@ function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
           </Box>
 
           <Box mt={2}>
-            {tabValue === 0 && renderChart(agePivot, "Likert Scale Results by Age Group")}
-            {tabValue === 1 && renderChart(incomePivot, "Likert Scale Results by Income Group")}
+            {tabValue === 0 && agePivot && renderChart(agePivot, "Likert Scale Results by Age Group")}
+            {tabValue === 1 && incomePivot && renderChart(incomePivot, "Likert Scale Results by Income Group")}
           </Box>
         </>
       )}

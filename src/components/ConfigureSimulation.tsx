@@ -1,4 +1,3 @@
-import React from 'react';
 import Grid from '@mui/material/Grid2';
 import { Typography, Paper } from '@mui/material';
 import ResponseTypeSelector from './ResponseTypeSelector';
@@ -6,6 +5,7 @@ import HiveSizeSelector from './HiveSizeSelector';
 import PerspectiveSelector from './PerspectiveSelector';
 import DemographicFilters from './DemographicFilters';
 import ModelSelector from './ModelSelector';
+import { ModelType } from '../config';
 
 interface ConfigureSimulationProps {
   responseTypes: string[];
@@ -18,14 +18,14 @@ interface ConfigureSimulationProps {
   setAgeRange: (range: [number, number]) => void;
   incomeRange: [number, number];
   setIncomeRange: (range: [number, number]) => void;
-  model: string;
-  setModel: (model: string) => void;
+  model: ModelType;
+  setModel: (model: ModelType) => void;
 }
 
 function ConfigureSimulation(props: ConfigureSimulationProps) {
   return (
     <Grid container spacing={3}>
-      <Grid xs={12} md={6}>
+      <Grid>
         <Paper elevation={2} sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>Response Configuration</Typography>
           <ResponseTypeSelector 
@@ -38,7 +38,7 @@ function ConfigureSimulation(props: ConfigureSimulationProps) {
           />
         </Paper>
       </Grid>
-      <Grid xs={12} md={6}>
+      <Grid>
         <Paper elevation={2} sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>Perspective</Typography>
           <PerspectiveSelector 
@@ -55,7 +55,7 @@ function ConfigureSimulation(props: ConfigureSimulationProps) {
           )}
         </Paper>
       </Grid>
-      <Grid xs={12}>
+      <Grid>
         <Paper elevation={2} sx={{ p: 2 }}>
           <Typography variant="h6" gutterBottom>Model Selection</Typography>
           <ModelSelector model={props.model} setModel={props.setModel} />
