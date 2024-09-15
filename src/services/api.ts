@@ -7,16 +7,30 @@ interface SimulationParams {
   hiveSize: number;
   perspectives: string[];
   apiKey: string;
+  ageRange: [number, number];
+  incomeRange: [number, number];
 }
 
-export async function getResponses({ question, responseTypes, hiveSize, perspectives, apiKey }: SimulationParams) {
+export async function getResponses({ 
+  question, 
+  responseTypes, 
+  hiveSize, 
+  perspectives, 
+  apiKey,
+  ageRange,
+  incomeRange
+}: SimulationParams) {
   const responses = [];
   for (let i = 0; i < hiveSize; i++) {
     const perspective = getRandomPerspective(perspectives);
-    const prompt = createPrompt(question, responseTypes, perspective);
+    const age = getRandomInRange(ageRange[0], ageRange[1]);
+    const income = getRandomInRange(incomeRange[0], incomeRange[1]);
+    const prompt = createPrompt(question, responseTypes, perspective, age, income);
     const response = await queryOpenAI(prompt, apiKey);
     responses.push({
       perspective,
+      age,
+      income,
       ...parseResponse(response, responseTypes)
     });
   }
@@ -27,8 +41,12 @@ function getRandomPerspective(perspectives: string[]) {
   return perspectives[Math.floor(Math.random() * perspectives.length)];
 }
 
-function createPrompt(question: string, responseTypes: string[], perspective: string) {
-  let prompt = `You are roleplaying as a person with the following perspective: ${perspective}. `;
+function getRandomInRange(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function createPrompt(question: string, responseTypes: string[], perspective: string, age: number, income: number) {
+  let prompt = `You are roleplaying as a ${age}-year-old person with an annual income of $${income} and the following perspective: ${perspective}. `;
   prompt += `Please respond to the following question from this perspective: "${question}" `;
   
   if (responseTypes.includes('open_ended')) {

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Container, Typography, Button, Box, TextField } from '@mui/material';
+import { Container, Typography, Button, Box, TextField, Grid } from '@mui/material';
 import QuestionInput from './components/QuestionInput';
 import ResponseTypeSelector from './components/ResponseTypeSelector';
 import HiveSizeSelector from './components/HiveSizeSelector';
 import PerspectivesSelector from './components/PerspectivesSelector';
+import DemographicFilters from './components/DemographicFilters';
 import ResultsDisplay from './components/ResultsDisplay';
 import { getResponses } from './services/api';
 
@@ -15,6 +16,8 @@ function App() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
+  const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
 
   const handleSubmit = async () => {
     if (!question || responseTypes.length === 0 || perspectives.length === 0 || !apiKey) {
@@ -23,7 +26,15 @@ function App() {
     }
     setLoading(true);
     try {
-      const data = await getResponses({ question, responseTypes, hiveSize, perspectives, apiKey });
+      const data = await getResponses({ 
+        question, 
+        responseTypes, 
+        hiveSize, 
+        perspectives, 
+        apiKey,
+        ageRange,
+        incomeRange
+      });
       setResults(data);
     } catch (error) {
       console.error('Error fetching responses:', error);
@@ -48,14 +59,26 @@ function App() {
         margin="normal"
       />
       <QuestionInput question={question} setQuestion={setQuestion} />
-      <ResponseTypeSelector
-        responseTypes={responseTypes}
-        setResponseTypes={setResponseTypes}
-      />
-      <HiveSizeSelector hiveSize={hiveSize} setHiveSize={setHiveSize} />
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <ResponseTypeSelector
+            responseTypes={responseTypes}
+            setResponseTypes={setResponseTypes}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <HiveSizeSelector hiveSize={hiveSize} setHiveSize={setHiveSize} />
+        </Grid>
+      </Grid>
       <PerspectivesSelector
         perspectives={perspectives}
         setPerspectives={setPerspectives}
+      />
+      <DemographicFilters
+        ageRange={ageRange}
+        setAgeRange={setAgeRange}
+        incomeRange={incomeRange}
+        setIncomeRange={setIncomeRange}
       />
       <Box mt={2}>
         <Button 
