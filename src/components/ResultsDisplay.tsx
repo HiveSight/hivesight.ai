@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Typography, Paper, List, ListItem, ListItemText, Box, Tabs, Tab } from '@mui/material';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LIKERT_LABELS, LIKERT_COLORS } from '../config';
 
 interface ResultsDisplayProps {
@@ -10,6 +10,7 @@ interface ResultsDisplayProps {
       perspective: string;
       age: number;
       income: number;
+      state: string;
       open_ended?: string;
       likert?: number;
     }>;
@@ -19,19 +20,6 @@ interface ResultsDisplayProps {
 function ResultsDisplay({ results }: ResultsDisplayProps) {
   const [tabValue, setTabValue] = useState(0);
 
-  const likertCounts = results.responses.reduce((acc, response) => {
-    if (response.likert) {
-      const label = LIKERT_LABELS[response.likert - 1];
-      acc[label] = (acc[label] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  const chartData = LIKERT_LABELS.map(label => ({
-    name: label,
-    value: likertCounts[label] || 0,
-  }));
-
   const ageBins = [
     { min: 0, max: 18, label: '0-18' },
     { min: 19, max: 30, label: '19-30' },
@@ -40,11 +28,6 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
     { min: 66, max: Infinity, label: '65+' },
   ];
 
-  const ageData = ageBins.map(bin => ({
-    name: bin.label,
-    value: results.responses.filter(r => r.age >= bin.min && r.age <= bin.max).length,
-  }));
-
   const incomeBins = [
     { min: 0, max: 30000, label: '$0-30k' },
     { min: 30001, max: 60000, label: '$30k-60k' },
@@ -52,12 +35,29 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
     { min: 100001, max: Infinity, label: '$100k+' },
   ];
 
-  const incomeData = incomeBins.map(bin => ({
-    name: bin.label,
-    value: results.responses.filter(r => r.income >= bin.min && r.income <= bin.max).length,
-  }));
+  const ageData = ageBins.map(bin => {
+    const binResponses = results.responses.filter(r => r.age >= bin.min && r.age <= bin.max);
+    const likertCounts = LIKERT_LABELS.map(label => ({
+      name: label,
+      value: binResponses.filter(r => r.likert === LIKERT_LABELS.indexOf(label) + 1).length,
+    }));
+    return {
+      name: bin.label,
+      ...Object.fromEntries(likertCounts.map(lc => [lc.name, lc.value])),
+    };
+  });
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const incomeData = incomeBins.map(bin => {
+    const binResponses = results.responses.filter(r => r.income >= bin.min && r.income <= bin.max);
+    const likertCounts = LIKERT_LABELS.map(label => ({
+      name: label,
+      value: binResponses.filter(r => r.likert === LIKERT_LABELS.indexOf(label) + 1).length,
+    }));
+    return {
+      name: bin.label,
+      ...Object.fromEntries(likertCounts.map(lc => [lc.name, lc.value])),
+    };
+  });
 
   return (
     <Paper elevation={3} style={{ padding: '20px', marginTop: '20px' }}>
@@ -69,60 +69,35 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
       </Typography>
 
       <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} centered>
-        <Tab label="Likert Scale" />
-        <Tab label="Age Distribution" />
-        <Tab label="Income Distribution" />
+        <Tab label="Likert by Age" />
+        <Tab label="Likert by Income" />
       </Tabs>
 
-      <Box height={300} mt={4} mb={4}>
+      <Box height={400} mt={4} mb={4}>
         {tabValue === 0 && (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
+            <BarChart data={ageData}>
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="value" fill="#8884d8" />
+              <Legend />
+              {LIKERT_LABELS.map((label, index) => (
+                <Bar key={label} dataKey={label} stackId="a" fill={LIKERT_COLORS[label]} />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         )}
         {tabValue === 1 && (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={ageData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {ageData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
+            <BarChart data={incomeData}>
+              <XAxis dataKey="name" />
+              <YAxis />
               <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-        {tabValue === 2 && (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={incomeData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {incomeData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
+              <Legend />
+              {LIKERT_LABELS.map((label, index) => (
+                <Bar key={label} dataKey={label} stackId="a" fill={LIKERT_COLORS[label]} />
+              ))}
+            </BarChart>
           </ResponsiveContainer>
         )}
       </Box>
@@ -153,14 +128,17 @@ function ResultsDisplay({ results }: ResultsDisplayProps) {
                   <Typography component="span" variant="body2" display="block">
                     <strong>Income:</strong> ${response.income.toLocaleString()}
                   </Typography>
+                  <Typography component="span" variant="body2" display="block">
+                    <strong>State:</strong> {response.state}
+                  </Typography>
                 </>
-              }
-            />
-          </ListItem>
-        ))}
-</List>
-    </Paper>
-  );
+            }
+          />
+        </ListItem>
+      ))}
+    </List>
+  </Paper>
+);
 }
 
 export default ResultsDisplay;

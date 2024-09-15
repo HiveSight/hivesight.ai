@@ -1,11 +1,12 @@
 import axios from 'axios';
 import { MODEL_MAP } from '../config';
+import { selectDiversePersonas } from './perspectivesData';
 
 interface SimulationParams {
   question: string;
   responseTypes: string[];
   hiveSize: number;
-  perspectives: string[];
+  perspective: string;
   apiKey: string;
   ageRange: [number, number];
   incomeRange: [number, number];
@@ -15,38 +16,46 @@ export async function getResponses({
   question, 
   responseTypes, 
   hiveSize, 
-  perspectives, 
+  perspective, 
   apiKey,
   ageRange,
   incomeRange
 }: SimulationParams) {
-  const responses = [];
-  for (let i = 0; i < hiveSize; i++) {
-    const perspective = getRandomPerspective(perspectives);
-    const age = getRandomInRange(ageRange[0], ageRange[1]);
-    const income = getRandomInRange(incomeRange[0], incomeRange[1]);
-    const prompt = createPrompt(question, responseTypes, perspective, age, income);
-    const response = await queryOpenAI(prompt, apiKey);
-    responses.push({
-      perspective,
-      age,
-      income,
-      ...parseResponse(response, responseTypes)
-    });
+  let personas;
+  if (perspective === 'sample_americans') {
+    personas = selectDiversePersonas(hiveSize, ageRange, incomeRange);
+  } else {
+    personas = Array(hiveSize).fill({ age: 30, income: 50000, state: 'General' });
   }
+
+  const responses = await Promise.all(personas.map(persona => 
+    generateResponse(question, responseTypes, perspective, persona, apiKey)
+  ));
+
   return { question, responses };
 }
 
-function getRandomPerspective(perspectives: string[]) {
-  return perspectives[Math.floor(Math.random() * perspectives.length)];
+async function generateResponse(question: string, responseTypes: string[], perspective: string, persona: any, apiKey: string) {
+  const prompt = createPrompt(question, responseTypes, perspective, persona);
+  const response = await queryOpenAI(prompt, apiKey);
+  return {
+    perspective,
+    age: persona.age,
+    income: persona.income,
+    state: persona.state,
+    ...parseResponse(response, responseTypes)
+  };
 }
 
-function getRandomInRange(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function createPrompt(question: string, responseTypes: string[], perspective: string, age: number, income: number) {
-  let prompt = `You are roleplaying as a ${age}-year-old person with an annual income of $${income} and the following perspective: ${perspective}. `;
+function createPrompt(question: string, responseTypes: string[], perspective: string, persona: any) {
+  let prompt = '';
+  if (perspective === 'sample_americans') {
+    prompt = `You are roleplaying as a ${persona.age}-year-old person from ${persona.state} with an annual income of $${persona.income}. `;
+  } else if (perspective === 'general_gpt') {
+    prompt = `You are an AI assistant providing a general perspective. `;
+  } else {
+    prompt = `You are roleplaying as a person with the following perspective: ${perspective}. `;
+  }
   prompt += `Please respond to the following question from this perspective: "${question}" `;
   
   if (responseTypes.includes('open_ended')) {

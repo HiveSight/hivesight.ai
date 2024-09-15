@@ -1,26 +1,30 @@
-import React, { useState } from 'react';
-import { Container, Typography, Button, Box, TextField, Grid } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Container, Typography, Button, Box, TextField, Grid, Radio, RadioGroup, FormControlLabel, FormControl, FormLabel } from '@mui/material';
 import QuestionInput from './components/QuestionInput';
 import ResponseTypeSelector from './components/ResponseTypeSelector';
 import HiveSizeSelector from './components/HiveSizeSelector';
-import PerspectivesSelector from './components/PerspectivesSelector';
 import DemographicFilters from './components/DemographicFilters';
 import ResultsDisplay from './components/ResultsDisplay';
 import { getResponses } from './services/api';
+import { loadPerspectives } from './services/perspectivesData';
 
 function App() {
   const [question, setQuestion] = useState('');
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
   const [hiveSize, setHiveSize] = useState(10);
-  const [perspectives, setPerspectives] = useState<string[]>([]);
+  const [perspective, setPerspective] = useState('general_gpt');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
   const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
 
+  useEffect(() => {
+    loadPerspectives();
+  }, []);
+
   const handleSubmit = async () => {
-    if (!question || responseTypes.length === 0 || perspectives.length === 0 || !apiKey) {
+    if (!question || responseTypes.length === 0 || !apiKey) {
       alert('Please fill in all fields and provide an API key.');
       return;
     }
@@ -30,7 +34,7 @@ function App() {
         question, 
         responseTypes, 
         hiveSize, 
-        perspectives, 
+        perspective,
         apiKey,
         ageRange,
         incomeRange
@@ -70,16 +74,27 @@ function App() {
           <HiveSizeSelector hiveSize={hiveSize} setHiveSize={setHiveSize} />
         </Grid>
       </Grid>
-      <PerspectivesSelector
-        perspectives={perspectives}
-        setPerspectives={setPerspectives}
-      />
-      <DemographicFilters
-        ageRange={ageRange}
-        setAgeRange={setAgeRange}
-        incomeRange={incomeRange}
-        setIncomeRange={setIncomeRange}
-      />
+      <FormControl component="fieldset" margin="normal">
+        <FormLabel component="legend">Select Perspective</FormLabel>
+        <RadioGroup
+          aria-label="perspective"
+          name="perspective"
+          value={perspective}
+          onChange={(e) => setPerspective(e.target.value)}
+        >
+          <FormControlLabel value="general_gpt" control={<Radio />} label="General GPT" />
+          <FormControlLabel value="sample_americans" control={<Radio />} label="Sample of Americans" />
+          <FormControlLabel value="custom_profiles" control={<Radio />} label="Custom Profiles" />
+        </RadioGroup>
+      </FormControl>
+      {perspective === 'sample_americans' && (
+        <DemographicFilters
+          ageRange={ageRange}
+          setAgeRange={setAgeRange}
+          incomeRange={incomeRange}
+          setIncomeRange={setIncomeRange}
+        />
+      )}
       <Box mt={2}>
         <Button 
           variant="contained" 
