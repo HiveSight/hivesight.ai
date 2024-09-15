@@ -1,6 +1,8 @@
 import { SimulationParams, ResponseData } from '../types';
 import { selectDiversePersonas } from './perspectivesData';
 import { generateResponse } from './responseGeneration';
+import { PersonaData } from '../types';
+
 
 export async function getResponses({
   question,
@@ -18,7 +20,7 @@ export async function getResponses({
     personas = Array(hiveSize).fill({ age: 30, income: 50000, state: 'General' });
   }
 
-  const responses = await Promise.all(personas.map(persona =>
+  const responses = await Promise.all(personas.map((persona: PersonaData) =>
     generateResponse(question, responseTypes, perspective, persona, model)
   ));
 

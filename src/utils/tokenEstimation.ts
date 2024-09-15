@@ -3,6 +3,9 @@ import { MODEL_COST_MAP } from '../config';
 
 let encoder: any = null;
 
+// Define a type that matches the keys of MODEL_COST_MAP
+type ModelType = keyof typeof MODEL_COST_MAP;
+
 export async function initializeEncoder() {
   if (!encoder) {
     encoder = get_encoding("cl100k_base");
@@ -20,7 +23,7 @@ export function estimateCost(
   question: string,
   responseTypes: string[],
   hiveSize: number,
-  model: string,
+  model: ModelType,  // Use the defined type here
   maxTokens: number
 ): { inputTokens: number; outputTokens: number; totalCost: number } {
   if (!encoder) {

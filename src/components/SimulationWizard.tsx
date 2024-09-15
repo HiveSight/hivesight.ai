@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Typography, 
   Button, 
@@ -9,7 +9,6 @@ import {
   Step, 
   StepLabel
 } from '@mui/material';
-import Grid from '@mui/material/Grid2';
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
@@ -17,6 +16,8 @@ import ResultsDisplay from './ResultsDisplay';
 import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
+import { ResponseData, ResponseType } from '../types';
+import { ModelType } from '../config';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
@@ -24,14 +25,20 @@ function SimulationWizard() {
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
   const [hiveSize, setHiveSize] = useState(10);
   const [perspective, setPerspective] = useState('general_gpt');
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState<ResponseData | null>(null);  // Set the type to ResponseData or null
   const [loading, setLoading] = useState(false);
   const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
   const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
   const [costEstimation, setCostEstimation] = useState<{ inputTokens: number; outputTokens: number; totalCost: number } | null>(null);
   const [encoderReady, setEncoderReady] = useState(false);
-  const [model, setModel] = useState('GPT-4o');
+  const [model, setModel] = useState<ModelType>('GPT-4o'); 
   const [error, setError] = useState<string | null>(null);
+
+  const convertToResponseType = (types: string[]): ResponseType[] => {
+    const validTypes: ResponseType[] = ['open_ended', 'likert'];
+    
+    return types.filter((type): type is ResponseType => (validTypes as string[]).includes(type));
+  };
 
   useEffect(() => {
     loadPerspectives();
@@ -52,20 +59,22 @@ function SimulationWizard() {
       setError('Please fill in all required fields before submitting.');
       return;
     }
-
+  
     setLoading(true);
     setError(null);
     try {
-      const data = await getResponses({ 
+      const validResponseTypes = convertToResponseType(responseTypes); // Convert to valid ResponseType[]
+  
+      const data = await getResponses({
         question, 
-        responseTypes, 
+        responseTypes: validResponseTypes,  // Pass the converted ResponseType array here
         hiveSize, 
         perspective,
         ageRange,
         incomeRange,
         model
       });
-      setResults(data);
+      setResults(data);  // Now results accepts ResponseData
       setActiveStep(3);  // Move to results step
     } catch (error) {
       console.error('Error fetching responses:', error);
@@ -80,7 +89,7 @@ function SimulationWizard() {
     setResponseTypes([]);
     setHiveSize(10);
     setPerspective('general_gpt');
-    setResults(null);
+    setResults(null);  // Reset results to null
     setAgeRange([18, 100]);
     setIncomeRange([0, 1000000]);
     setModel('GPT-4o');
