@@ -13,7 +13,7 @@
     "test": "npm run typecheck && npm run build"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=19.0.0"
   },
   "dependencies": {
     "@dqbd/tiktoken": "^1.0.16",

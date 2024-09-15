@@ -1,4 +1,4 @@
-import papa from 'papaparse';
+import * as papa from 'papaparse';
 
 interface Perspective {
   age: number;
