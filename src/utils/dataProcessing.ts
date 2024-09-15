@@ -46,10 +46,28 @@ export function createPivotTable(responses: any[], groupBy: 'age' | 'income') {
     });
   });
 
-  return Object.entries(pivotData).map(([name, data]) => ({
+  // Convert to array and sort
+  const sortedData = Object.entries(pivotData).map(([name, data]) => ({
     name,
     ...data
   }));
+
+  // Sort based on the groupBy variable
+  if (groupBy === 'age') {
+    sortedData.sort((a, b) => {
+      const aAge = parseInt(a.name.split('-')[0]);
+      const bAge = parseInt(b.name.split('-')[0]);
+      return aAge - bAge;
+    });
+  } else {
+    sortedData.sort((a, b) => {
+      const aIncome = parseInt(a.name.replace(/\$|,|\+/g, ''));
+      const bIncome = parseInt(b.name.replace(/\$|,|\+/g, ''));
+      return aIncome - bIncome;
+    });
+  }
+
+  return sortedData;
 }
 
 export function calculateOverallDistribution(responses: any[]) {
