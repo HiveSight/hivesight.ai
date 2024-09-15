@@ -3,6 +3,11 @@ export const MODEL_MAP = {
     "GPT-4o-mini": "gpt-4o-mini",
   };
   
+  export const MODEL_COST_MAP = {
+    "GPT-4o": { Input: 5.0, Output: 15.0 },
+    "GPT-4o-mini": { Input: 0.15, Output: 0.60 },
+  };
+  
   export const LIKERT_LABELS = [
     "Strongly Disagree",
     "Disagree",

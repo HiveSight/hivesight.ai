@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Box, TextField, Grid, Radio, RadioGroup, FormControlLabel, FormControl, FormLabel } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Container, Typography, Button, Box, TextField, Grid } from '@mui/material';
 import QuestionInput from './components/QuestionInput';
 import ResponseTypeSelector from './components/ResponseTypeSelector';
 import HiveSizeSelector from './components/HiveSizeSelector';
 import DemographicFilters from './components/DemographicFilters';
+import PerspectiveSelector from './components/PerspectiveSelector';
+import CostEstimation from './components/CostEstimation';
 import ResultsDisplay from './components/ResultsDisplay';
 import { getResponses } from './services/api';
 import { loadPerspectives } from './services/perspectivesData';
+import { initializeEncoder, estimateCost } from './utils/tokenEstimation';
 
 function App() {
   const [question, setQuestion] = useState('');
@@ -18,10 +21,22 @@ function App() {
   const [apiKey, setApiKey] = useState('');
   const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
   const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
+  const [costEstimation, setCostEstimation] = useState<{ inputTokens: number; outputTokens: number; totalCost: number } | null>(null);
+  const [encoderReady, setEncoderReady] = useState(false);
 
   useEffect(() => {
     loadPerspectives();
+    initializeEncoder().then(() => setEncoderReady(true));
   }, []);
+
+  useEffect(() => {
+    if (encoderReady && question && responseTypes.length > 0) {
+      const cost = estimateCost(question, responseTypes, hiveSize, 'GPT-4o-mini', 150);
+      setCostEstimation(cost);
+    } else {
+      setCostEstimation(null);
+    }
+  }, [encoderReady, question, responseTypes, hiveSize]);
 
   const handleSubmit = async () => {
     if (!question || responseTypes.length === 0 || !apiKey) {
@@ -74,19 +89,7 @@ function App() {
           <HiveSizeSelector hiveSize={hiveSize} setHiveSize={setHiveSize} />
         </Grid>
       </Grid>
-      <FormControl component="fieldset" margin="normal">
-        <FormLabel component="legend">Select Perspective</FormLabel>
-        <RadioGroup
-          aria-label="perspective"
-          name="perspective"
-          value={perspective}
-          onChange={(e) => setPerspective(e.target.value)}
-        >
-          <FormControlLabel value="general_gpt" control={<Radio />} label="General GPT" />
-          <FormControlLabel value="sample_americans" control={<Radio />} label="Sample of Americans" />
-          <FormControlLabel value="custom_profiles" control={<Radio />} label="Custom Profiles" />
-        </RadioGroup>
-      </FormControl>
+      <PerspectiveSelector perspective={perspective} setPerspective={setPerspective} />
       {perspective === 'sample_americans' && (
         <DemographicFilters
           ageRange={ageRange}
@@ -95,6 +98,7 @@ function App() {
           setIncomeRange={setIncomeRange}
         />
       )}
+      <CostEstimation costEstimation={costEstimation} />
       <Box mt={2}>
         <Button 
           variant="contained" 
@@ -104,7 +108,8 @@ function App() {
           {loading ? 'Processing...' : 'Submit'}
         </Button>
       </Box>
-      {results && <ResultsDisplay results={results} responseTypes={responseTypes} />}    </Container>
+      {results && <ResultsDisplay results={results} responseTypes={responseTypes} />}
+    </Container>
   );
 }
 

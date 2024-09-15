@@ -1,4 +1,3 @@
-import React from 'react';
 import { Typography, Slider, Box } from '@mui/material';
 
 interface DemographicFiltersProps {

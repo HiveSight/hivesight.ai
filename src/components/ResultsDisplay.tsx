@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Typography, Paper, List, ListItem, ListItemText, Box, Tabs, Tab } from '@mui/material';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { LIKERT_LABELS, LIKERT_COLORS } from '../config';
