@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { Typography, Paper, List, ListItem, ListItemText, Box, Tabs, Tab } from '@mui/material';
+import React, { useState } from 'react';
+import { Typography, Paper, Box, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Collapse, IconButton } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { LIKERT_LABELS, LIKERT_COLORS } from '../config';
 import { createPivotTable, calculateOverallDistribution } from '../utils/dataProcessing';
+import ResponseSummary from './ResponseSummary';
 
 interface ResultsDisplayProps {
   results: {
@@ -21,15 +24,17 @@ interface ResultsDisplayProps {
 
 function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
   const [tabValue, setTabValue] = useState(0);
+  const [openRawResults, setOpenRawResults] = useState(false);
 
   const hasLikert = responseTypes.includes('likert');
+  const hasOpenEnded = responseTypes.includes('open_ended');
 
   const overallDistribution = hasLikert ? calculateOverallDistribution(results.responses) : null;
   const agePivot = hasLikert ? createPivotTable(results.responses, 'age') : null;
   const incomePivot = hasLikert ? createPivotTable(results.responses, 'income') : null;
 
   const renderChart = (data: any[], title: string) => (
-    <>
+    <Box mt={2}>
       <Typography variant="h6" gutterBottom>
         {title}
       </Typography>
@@ -49,69 +54,76 @@ function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
           ))}
         </BarChart>
       </ResponsiveContainer>
-    </>
+    </Box>
   );
 
   return (
     <Paper elevation={3} style={{ padding: '20px', marginTop: '20px' }}>
       <Typography variant="h5" gutterBottom>
-        Results:
+        Results
       </Typography>
       <Typography variant="body1" gutterBottom>
         <strong>Question:</strong> {results.question}
       </Typography>
 
+      {hasOpenEnded && (
+        <ResponseSummary responses={results.responses} />
+      )}
+
       {hasLikert && (
         <>
           {renderChart([overallDistribution], "Overall Distribution of Responses")}
 
-          <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} centered>
-            <Tab label="Likert by Age" />
-            <Tab label="Likert by Income" />
-          </Tabs>
+          <Box mt={4}>
+            <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} centered>
+              <Tab label="Likert by Age" />
+              <Tab label="Likert by Income" />
+            </Tabs>
+          </Box>
 
-          <Box height={300} mt={4} mb={4}>
+          <Box mt={2}>
             {tabValue === 0 && renderChart(agePivot, "Likert Scale Results by Age Group")}
             {tabValue === 1 && renderChart(incomePivot, "Likert Scale Results by Income Group")}
           </Box>
         </>
       )}
 
-      <List>
-        {results.responses.map((response, index) => (
-          <ListItem key={index}>
-            <ListItemText
-              primary={`Response #${index + 1}`}
-              secondary={
-                <>
-                  {response.open_ended && (
-                    <Typography component="span" variant="body2" display="block">
-                      <strong>Open-ended:</strong> {response.open_ended}
-                    </Typography>
-                  )}
-                  {response.likert && (
-                    <Typography component="span" variant="body2" display="block">
-                      <strong>Likert Score:</strong> {response.likert} ({LIKERT_LABELS[response.likert - 1]})
-                    </Typography>
-                  )}
-                  <Typography component="span" variant="body2" display="block">
-                    <strong>Perspective:</strong> {response.perspective}
-                  </Typography>
-                  <Typography component="span" variant="body2" display="block">
-                    <strong>Age:</strong> {response.age}
-                  </Typography>
-                  <Typography component="span" variant="body2" display="block">
-                    <strong>Income:</strong> ${response.income.toLocaleString()}
-                  </Typography>
-                  <Typography component="span" variant="body2" display="block">
-                    <strong>State:</strong> {response.state}
-                  </Typography>
-                </>
-              }
-            />
-          </ListItem>
-        ))}
-      </List>
+      <Box mt={4}>
+        <Typography variant="h6" gutterBottom>
+          Raw Results
+          <IconButton onClick={() => setOpenRawResults(!openRawResults)}>
+            {openRawResults ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </Typography>
+        <Collapse in={openRawResults}>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Perspective</TableCell>
+                  <TableCell>Age</TableCell>
+                  <TableCell>Income</TableCell>
+                  <TableCell>State</TableCell>
+                  {hasOpenEnded && <TableCell>Open-ended Response</TableCell>}
+                  {hasLikert && <TableCell>Likert Score</TableCell>}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {results.responses.map((response, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{response.perspective}</TableCell>
+                    <TableCell>{response.age}</TableCell>
+                    <TableCell>${response.income.toLocaleString()}</TableCell>
+                    <TableCell>{response.state}</TableCell>
+                    {hasOpenEnded && <TableCell>{response.open_ended}</TableCell>}
+                    {hasLikert && <TableCell>{response.likert}</TableCell>}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Collapse>
+      </Box>
     </Paper>
   );
 }

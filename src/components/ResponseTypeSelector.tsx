@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import { FormGroup, FormControlLabel, Checkbox, Typography } from '@mui/material';
 
 interface ResponseTypeSelectorProps {
   responseTypes: string[];
@@ -23,6 +23,9 @@ function ResponseTypeSelector({ responseTypes, setResponseTypes }: ResponseTypeS
 
   return (
     <FormGroup>
+      <Typography variant="subtitle1" gutterBottom>
+        Select at least one response type:
+      </Typography>
       {options.map((option) => (
         <FormControlLabel
           key={option.value}
@@ -36,6 +39,11 @@ function ResponseTypeSelector({ responseTypes, setResponseTypes }: ResponseTypeS
           label={option.label}
         />
       ))}
+      {responseTypes.length === 0 && (
+        <Typography color="error">
+          Please select at least one response type.
+        </Typography>
+      )}
     </FormGroup>
   );
 }
