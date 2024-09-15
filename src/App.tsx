@@ -104,8 +104,7 @@ function App() {
           {loading ? 'Processing...' : 'Submit'}
         </Button>
       </Box>
-      {results && <ResultsDisplay results={results} />}
-    </Container>
+      {results && <ResultsDisplay results={results} responseTypes={responseTypes} />}    </Container>
   );
 }
 
