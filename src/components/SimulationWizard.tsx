@@ -19,7 +19,7 @@ import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 
-function SimulationWizard( {setUser }) {
+function SimulationWizard( { setUser }) {
   const [activeStep, setActiveStep] = useState(0);
   const [question, setQuestion] = useState('');
   const [responseTypes, setResponseTypes] = useState<string[]>([]);

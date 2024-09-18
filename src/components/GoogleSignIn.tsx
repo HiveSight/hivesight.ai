@@ -19,7 +19,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
       variant="contained"
       color="primary"
     >
-      Sign in with Google.
+      Sign in with Google
     </Button>
   );
 };
