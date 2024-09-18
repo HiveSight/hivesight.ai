@@ -19,7 +19,7 @@ import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 
-function SimulationWizard() {
+function SimulationWizard( {setUser }) {
   const [activeStep, setActiveStep] = useState(0);
   const [question, setQuestion] = useState('');
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
@@ -53,6 +53,11 @@ function SimulationWizard() {
       setCostEstimation(null);
     }
   }, [encoderReady, question, responseTypes, hiveSize, model]);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+  };
 
   const handleSubmit = async () => {
     if (!question || responseTypes.length === 0) {
@@ -154,13 +159,18 @@ function SimulationWizard() {
       )}
       <Box mt={2} display="flex" justifyContent="space-between">
         {activeStep === steps.length - 1 ? (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleNewQuestion}
-          >
-            New Question
-          </Button>
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleNewQuestion}
+            >
+              New Question
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={handleSignOut}>
+              Sign Out
+            </Button>
+          </>
         ) : (
           <>
             <Button
@@ -183,6 +193,9 @@ function SimulationWizard() {
             >
               {loading ? <CircularProgress size={24} /> : 
                 activeStep === steps.length - 2 ? 'Submit' : 'Next'}
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={handleSignOut}>
+              Sign Out
             </Button>
           </>
         )}

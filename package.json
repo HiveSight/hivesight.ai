@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "^2.45.4",
     "@types/papaparse": "^5.3.14",
     "axios": "^1.7.7",
+    "jwt-decode": "^4.0.0",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

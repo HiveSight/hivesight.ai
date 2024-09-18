@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from 'react';
+import Login from './components/Login';
 import { 
   Container, 
   createTheme, 
@@ -14,11 +16,25 @@ const theme = createTheme({
 });
 
 function App() {
+
+  const [user, setUser] = useState(null);
+ 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setUser({ loggedIn: true });
+    }
+  }, []); 
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="md">
-        <SimulationWizard />
+        {user ? (
+          <SimulationWizard setUser={setUser} />
+        ) : (
+          <Login setUser={setUser} />
+        )}
       </Container>
     </ThemeProvider>
   );
