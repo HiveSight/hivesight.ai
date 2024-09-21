@@ -29,3 +29,8 @@ export interface ResponseData {
     likert?: number;
   }>;
 }
+
+export interface User {
+  loggedIn: boolean;
+  email?: string;
+}

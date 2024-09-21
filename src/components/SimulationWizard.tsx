@@ -16,10 +16,14 @@ import ResultsDisplay from './ResultsDisplay';
 import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
-import { ResponseData, ResponseType } from '../types';
+import { ResponseData, ResponseType, User } from '../types';
 import { ModelType } from '../config';
 
-function SimulationWizard( { setUser }) {
+interface SimulationWizardProps {
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+}
+
+function SimulationWizard({ setUser }: SimulationWizardProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [question, setQuestion] = useState('');
   const [responseTypes, setResponseTypes] = useState<string[]>([]);

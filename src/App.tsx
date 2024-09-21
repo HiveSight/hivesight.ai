@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Login from './components/Login';
+import { User } from './types';
 import { 
   Container, 
   createTheme, 
@@ -17,7 +18,7 @@ const theme = createTheme({
 
 function App() {
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
  
   useEffect(() => {
     const token = localStorage.getItem('token');
