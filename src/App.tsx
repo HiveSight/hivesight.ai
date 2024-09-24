@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { supabase } from './components/supabaseClient';
+import { getUserCredits } from './components/creditService';
 import Login from './components/Login';
 import { User } from './types';
 import { 
@@ -19,13 +21,32 @@ const theme = createTheme({
 function App() {
 
   const [user, setUser] = useState<User | null>(null);
+  const [credits, setCredits] = useState(0)
  
+  // useEffect(() => {
+  //   const token = localStorage.getItem('token');
+  //   if (token) {
+  //     setUser({ loggedIn: true });
+  //   }
+  // }, []); 
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      setUser({ loggedIn: true });
+      setUser({ loggedIn: true});
+      fetchUserCredits(token);
     }
-  }, []); 
+  }, []);
+
+  const fetchUserCredits = async (token: string) => {
+    try {
+      const userCredits = await getUserCredits(token);
+      console.log("User credits are:", userCredits);
+      setCredits(userCredits);
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+    }
+  };
 
   return (
     <ThemeProvider theme={theme}>
