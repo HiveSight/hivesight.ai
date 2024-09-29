@@ -22,7 +22,6 @@
     "@fontsource/poppins": "^5.1.0",
     "@mui/icons-material": "^6.1.0",
     "@mui/material": "^6.1.0",
-    "@react-oauth/google": "^0.12.1",
     "@stripe/stripe-js": "^4.4.0",
     "@supabase/supabase-js": "^2.45.4",
     "@types/papaparse": "^5.3.14",
