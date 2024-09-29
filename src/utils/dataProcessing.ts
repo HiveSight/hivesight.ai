@@ -3,6 +3,12 @@ import { LIKERT_LABELS } from '../config';
 const AGE_BINS = [0, 18, 25, 35, 45, 55, 65, Infinity];
 const INCOME_BINS = [0, 30000, 60000, 90000, 120000, Infinity];
 
+interface Response {
+  likert?: number;
+  age: number;
+  income: number;
+}
+
 function getBinLabel(value: number, bins: number[], isIncome: boolean): string {
   for (let i = 0; i < bins.length - 1; i++) {
     if (value >= bins[i] && value < bins[i + 1]) {
@@ -20,7 +26,7 @@ function getBinLabel(value: number, bins: number[], isIncome: boolean): string {
   return 'Unknown';
 }
 
-export function createPivotTable(responses: any[], groupBy: 'age' | 'income') {
+export function createPivotTable(responses: Response[], groupBy: 'age' | 'income') {
   const bins = groupBy === 'age' ? AGE_BINS : INCOME_BINS;
   const isIncome = groupBy === 'income';
 
@@ -70,7 +76,7 @@ export function createPivotTable(responses: any[], groupBy: 'age' | 'income') {
   return sortedData;
 }
 
-export function calculateOverallDistribution(responses: any[]) {
+export function calculateOverallDistribution(responses: Response[]) {
   const distribution: { [key: string]: number } = {};
   LIKERT_LABELS.forEach(label => distribution[label] = 0);
 

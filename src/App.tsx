@@ -5,8 +5,8 @@ import {
   CssBaseline 
 } from '@mui/material';
 import SimulationWizard from './components/SimulationWizard';
-
-// Create a theme with Poppins font
+import LandingPage from './components/LandingPage';
+import { useState } from 'react';
 const theme = createTheme({
   typography: {
     fontFamily: 'Poppins, Arial, sans-serif',
@@ -14,11 +14,23 @@ const theme = createTheme({
 });
 
 function App() {
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  const handleSignIn = () => {
+    // Here you would typically handle the actual sign-in process
+    // For now, we'll just set isSignedIn to true
+    setIsSignedIn(true);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="md">
-        <SimulationWizard />
+        {isSignedIn ? (
+          <SimulationWizard />
+        ) : (
+          <LandingPage onSignIn={handleSignIn} />
+        )}
       </Container>
     </ThemeProvider>
   );

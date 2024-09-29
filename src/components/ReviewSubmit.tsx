@@ -1,5 +1,4 @@
 import { Typography, Box } from '@mui/material';
-import CostEstimation from './CostEstimation';
 
 interface ReviewSubmitProps {
   question: string;
@@ -7,6 +6,7 @@ interface ReviewSubmitProps {
   hiveSize: number;
   perspective: string;
   model: string;
+  ageRange: [number, number];
   costEstimation: { inputTokens: number; outputTokens: number; totalCost: number } | null;
 }
 
@@ -15,8 +15,7 @@ function ReviewSubmit({
   responseTypes,
   hiveSize,
   perspective,
-  model,
-  costEstimation
+  model
 }: ReviewSubmitProps) {
   return (
     <Box>
@@ -26,7 +25,6 @@ function ReviewSubmit({
       <Typography><strong>Hive Size:</strong> {hiveSize}</Typography>
       <Typography><strong>Perspective:</strong> {perspective}</Typography>
       <Typography><strong>Model:</strong> {model}</Typography>
-      <CostEstimation costEstimation={costEstimation} />
     </Box>
   );
 }

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
-  Typography, 
-  Button, 
-  Box, 
-  CircularProgress, 
-  Paper, 
-  Stepper, 
-  Step, 
-  StepLabel
+import {
+  Typography,
+  Button,
+  Box,
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  Container,
 } from '@mui/material';
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
@@ -15,9 +15,10 @@ import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
 import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
-import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
+import { initializeEncoder } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
+import AppLayout from './AppLayout';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
@@ -25,76 +26,61 @@ function SimulationWizard() {
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
   const [hiveSize, setHiveSize] = useState(10);
   const [perspective, setPerspective] = useState('general_gpt');
-  const [results, setResults] = useState<ResponseData | null>(null);  // Set the type to ResponseData or null
+  const [results, setResults] = useState<ResponseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
   const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
-  const [costEstimation, setCostEstimation] = useState<{ inputTokens: number; outputTokens: number; totalCost: number } | null>(null);
-  const [encoderReady, setEncoderReady] = useState(false);
-  const [model, setModel] = useState<ModelType>('GPT-4o'); 
+  const [model, setModel] = useState<ModelType>('GPT-4o');
   const [error, setError] = useState<string | null>(null);
-
-  const convertToResponseType = (types: string[]): ResponseType[] => {
-    const validTypes: ResponseType[] = ['open_ended', 'likert'];
-    
-    return types.filter((type): type is ResponseType => (validTypes as string[]).includes(type));
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadPerspectives();
-    initializeEncoder().then(() => setEncoderReady(true));
+    initializeEncoder();
   }, []);
 
-  useEffect(() => {
-    if (encoderReady && question && responseTypes.length > 0) {
-      const cost = estimateCost(question, responseTypes, hiveSize, model, 150);
-      setCostEstimation(cost);
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
+  const handleNext = async () => {
+    if (activeStep === 2) {
+      await handleSubmit();
     } else {
-      setCostEstimation(null);
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
-  }, [encoderReady, question, responseTypes, hiveSize, model]);
+  };
 
   const handleSubmit = async () => {
+    setIsLoading(true);
     if (!question || responseTypes.length === 0) {
       setError('Please fill in all required fields before submitting.');
       return;
     }
-  
+
     setLoading(true);
     setError(null);
     try {
-      const validResponseTypes = convertToResponseType(responseTypes); // Convert to valid ResponseType[]
-  
+      const validResponseTypes = responseTypes as ResponseType[];
+
       const data = await getResponses({
-        question, 
-        responseTypes: validResponseTypes,  // Pass the converted ResponseType array here
-        hiveSize, 
+        question,
+        responseTypes: validResponseTypes,
+        hiveSize,
         perspective,
         ageRange,
         incomeRange,
-        model
+        model,
       });
-      setResults(data);  // Now results accepts ResponseData
-      setActiveStep(3);  // Move to results step
+      setResults(data);
+      setActiveStep(3);
     } catch (error) {
       console.error('Error fetching responses:', error);
       setError('Error fetching responses. Please try again.');
     } finally {
       setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleNewQuestion = () => {
-    setQuestion('');
-    setResponseTypes([]);
-    setHiveSize(10);
-    setPerspective('general_gpt');
-    setResults(null);  // Reset results to null
-    setAgeRange([18, 100]);
-    setIncomeRange([0, 1000000]);
-    setModel('GPT-4o');
-    setActiveStep(0);
-    setError(null);
   };
 
   const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
@@ -104,90 +90,127 @@ function SimulationWizard() {
       case 0:
         return <QuestionInput question={question} setQuestion={setQuestion} />;
       case 1:
-        return <ConfigureSimulation 
-          responseTypes={responseTypes} 
-          setResponseTypes={setResponseTypes}
-          hiveSize={hiveSize}
-          setHiveSize={setHiveSize}
-          perspective={perspective}
-          setPerspective={setPerspective}
-          ageRange={ageRange}
-          setAgeRange={setAgeRange}
-          incomeRange={incomeRange}
-          setIncomeRange={setIncomeRange}
-          model={model}
-          setModel={setModel}
-        />;
+        return (
+          <ConfigureSimulation
+            responseTypes={responseTypes}
+            setResponseTypes={setResponseTypes}
+            hiveSize={hiveSize}
+            setHiveSize={setHiveSize}
+            incomeRange={incomeRange}
+            setIncomeRange={setIncomeRange}
+            model={model}
+            setModel={setModel}
+            ageRange={ageRange}
+            setAgeRange={setAgeRange}
+            perspective={perspective}
+            setPerspective={setPerspective}
+          />
+        );
       case 2:
-        return <ReviewSubmit 
-          question={question}
-          responseTypes={responseTypes}
-          hiveSize={hiveSize}
-          perspective={perspective}
-          model={model}
-          costEstimation={costEstimation}
-        />;
+        return (
+          <ReviewSubmit
+            question={question}
+            responseTypes={responseTypes}
+            hiveSize={hiveSize}
+            perspective={perspective}
+            ageRange={ageRange}
+            model={model}
+            costEstimation={{
+              inputTokens: 0,
+              outputTokens: 0,
+              totalCost: 0
+            }}
+          />
+        );
       case 3:
-        return results && <ResultsDisplay results={results} responseTypes={responseTypes} />;
+        return (
+          results && (
+            <ResultsDisplay responseTypes={responseTypes} results={results} />
+          )
+        );
       default:
         return 'Unknown step';
     }
   };
 
   return (
-    <Paper elevation={3} style={{ padding: '2rem', marginTop: '2rem' }}>
-      <Typography variant="h4" component="h1" gutterBottom align="center">
-        🐝 HiveSight
-      </Typography>
-      <Stepper activeStep={activeStep} alternativeLabel style={{ marginBottom: '2rem' }}>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
-      <Box mb={4}>
-        {getStepContent(activeStep)}
-      </Box>
-      {error && (
-        <Typography color="error" gutterBottom>{error}</Typography>
-      )}
-      <Box mt={2} display="flex" justifyContent="space-between">
-        {activeStep === steps.length - 1 ? (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleNewQuestion}
-          >
-            New Question
-          </Button>
-        ) : (
-          <>
+    <AppLayout>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          overflow: 'auto',
+          backgroundColor: '#f5f5f5',
+        }}
+      >
+        {/* HiveSight logo and name in upper left */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            display: 'flex',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="HiveSight Logo"
+            style={{ height: '24px', marginRight: '10px' }}
+          />
+          <Typography variant="h6" component="h1">
+            HiveSight
+          </Typography>
+        </Box>
+
+        <Container maxWidth="md" sx={{ mt: 8, mb: 4 }}>
+          <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+          <Box sx={{ mt: 4, mb: 4 }}>{getStepContent(activeStep)}</Box>
+          {error && (
+            <Typography color="error" align="center">
+              {error}
+            </Typography>
+          )}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button
-              disabled={activeStep === 0}
-              onClick={() => setActiveStep((prevActiveStep) => prevActiveStep - 1)}
+              color="inherit"
+              disabled={activeStep === 0 || loading}
+              onClick={handleBack}
+              sx={{ mr: 1 }}
             >
               Back
             </Button>
             <Button
               variant="contained"
               color="primary"
-              onClick={() => {
-                if (activeStep === steps.length - 2) {
-                  handleSubmit();
-                } else {
-                  setActiveStep((prevActiveStep) => prevActiveStep + 1);
-                }
-              }}
-              disabled={loading || (activeStep === 1 && responseTypes.length === 0)}
+              onClick={handleNext}
+              disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 
-                activeStep === steps.length - 2 ? 'Submit' : 'Next'}
+              {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
             </Button>
-          </>
-        )}
+          </Box>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" my={4}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            results && (
+              <ResultsDisplay responseTypes={responseTypes} results={results} />
+            )
+          )}
+        </Container>
       </Box>
-    </Paper>
+    </AppLayout>
   );
 }
 
