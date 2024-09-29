@@ -1,3 +1,5 @@
+import { ModelType } from './config';
+
 export type ResponseType = 'open_ended' | 'likert';
 
 export interface SimulationParams {
@@ -7,7 +9,7 @@ export interface SimulationParams {
   perspective: string;
   ageRange: [number, number];
   incomeRange: [number, number];
-  model: string;
+  model: ModelType;
 }
 
 export interface PersonaData {

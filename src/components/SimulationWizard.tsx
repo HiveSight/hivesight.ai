@@ -1,79 +1,55 @@
-import { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Stepper,
-  Step,
-  StepLabel,
-  Button,
-  Container,
+import { useState, useEffect } from 'react';
+import { 
+  Typography, 
+  Button, 
+  Box, 
+  Stepper, 
+  Step, 
+  StepLabel
 } from '@mui/material';
-import AppLayout from './AppLayout';
-import { queryOpenAI } from '../services/openAIService';
-
-// Import your step components
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
-
-// Define your data models
-interface Response {
-  perspective: string;
-  age: number;
-  income: number;
-  state: string;
-  open_ended?: string;
-  likert?: number;
-}
-
-interface Results {
-  question: string;
-  responses: Response[];
-}
-
-// Update your props types as needed
-export type ConfigureSimulationProps = {
-  responseTypes: string[];
-  setResponseTypes: React.Dispatch<React.SetStateAction<string[]>>;
-  hiveSize: number;
-  setHiveSize: React.Dispatch<React.SetStateAction<number>>;
-  incomeRange: [number, number];
-  setIncomeRange: React.Dispatch<React.SetStateAction<[number, number]>>;
-  model: string;
-  setModel: React.Dispatch<React.SetStateAction<string>>;
-  ageRange: [number, number];
-  setAgeRange: React.Dispatch<React.SetStateAction<[number, number]>>;
-  perspective: string;
-  setPerspective: React.Dispatch<React.SetStateAction<string>>;
-};
-
-export interface ReviewSubmitProps {
-  question: string;
-  responseTypes: string[];
-  hiveSize: number;
-  perspective: string;
-  ageRange: [number, number];
-  model: string;  // Add this line
-}
+import { getResponses } from '../services/api';
+import { loadPerspectives } from '../services/perspectivesData';
+import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
+import { ResponseData, ResponseType } from '../types';
+import { ModelType } from '../config';
+import AppLayout from './AppLayout';
+import { Container } from '@mui/material';
+import { queryOpenAI } from '../services/openAIService';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
   const [question, setQuestion] = useState('');
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
   const [hiveSize, setHiveSize] = useState(10);
-  const [ageRange, setAgeRange] = useState<[number, number]>([0, 100]);
-  const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
-  const [model, setModel] = useState('');
-  const [perspective, setPerspective] = useState('');
-  const [results, setResults] = useState<string | null>(null);
+  const [perspective, setPerspective] = useState('general_gpt');
+  const [results, setResults] = useState<ResponseData | null>(null);  // Set the type to ResponseData or null
   const [loading, setLoading] = useState(false);
-  const steps = ['Ask a Question', 'Configure Simulation', 'Review and Submit', 'Results'];
+  const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
+  const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
+  const [costEstimation, setCostEstimation] = useState<{ inputTokens: number; outputTokens: number; totalCost: number } | null>(null);
+  const [encoderReady, setEncoderReady] = useState(false);
+  const [model, setModel] = useState<ModelType>('GPT-4o'); 
+  const [error, setError] = useState<string | null>(null);
 
-  const handleNext = () => {
-    if (activeStep === 2) {
-      // Submit data and fetch results
-      fetchResults();
+  const convertToResponseType = (types: string[]): ResponseType[] => {
+    const validTypes: ResponseType[] = ['open_ended', 'likert'];
+    
+    return types.filter((type): type is ResponseType => (validTypes as string[]).includes(type));
+  };
+
+  useEffect(() => {
+    loadPerspectives();
+    initializeEncoder().then(() => setEncoderReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (encoderReady && question && responseTypes.length > 0) {
+      const cost = estimateCost(question, responseTypes, hiveSize, model, 150);
+      setCostEstimation(cost);
     } else {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
@@ -97,13 +73,49 @@ function SimulationWizard() {
   };
 
   const handleSubmit = async () => {
+    if (!question || responseTypes.length === 0) {
+      setError('Please fill in all required fields before submitting.');
+      return;
+    }
+  
     setLoading(true);
-    // Perform your simulation logic here
-    // ...
-    setLoading(false);
+    setError(null);
+    try {
+      const validResponseTypes = convertToResponseType(responseTypes); // Convert to valid ResponseType[]
+  
+      const data = await getResponses({
+        question, 
+        responseTypes: validResponseTypes,  // Pass the converted ResponseType array here
+        hiveSize, 
+        perspective,
+        ageRange,
+        incomeRange,
+        model
+      });
+      setResults(data);  // Now results accepts ResponseData
+      setActiveStep(3);  // Move to results step
+    } catch (error) {
+      console.error('Error fetching responses:', error);
+      setError('Error fetching responses. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  console.log('Rendering SimulationWizard');
+  const handleNewQuestion = () => {
+    setQuestion('');
+    setResponseTypes([]);
+    setHiveSize(10);
+    setPerspective('general_gpt');
+    setResults(null);  // Reset results to null
+    setAgeRange([18, 100]);
+    setIncomeRange([0, 1000000]);
+    setModel('GPT-4o');
+    setActiveStep(0);
+    setError(null);
+  };
+
+  const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
 
   const getStepContent = (step: number) => {
     switch (step) {

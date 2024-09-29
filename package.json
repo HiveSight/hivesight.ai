@@ -8,7 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prebuild": "npm run typecheck",
+    "test": "npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=19.0.0"
   },
   "dependencies": {
     "@dqbd/tiktoken": "^1.0.16",

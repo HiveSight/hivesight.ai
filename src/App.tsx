@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { 
   Container, 
   createTheme, 
@@ -7,7 +6,7 @@ import {
 } from '@mui/material';
 import SimulationWizard from './components/SimulationWizard';
 import LandingPage from './components/LandingPage';
-
+import { useState } from 'react';
 const theme = createTheme({
   typography: {
     fontFamily: 'Poppins, Arial, sans-serif',
