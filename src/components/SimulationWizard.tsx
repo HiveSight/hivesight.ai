@@ -116,7 +116,11 @@ function SimulationWizard() {
             perspective={perspective}
             ageRange={ageRange}
             model={model}
-            costEstimation={CostEstimation}
+            costEstimation={{
+              inputTokens: 0,
+              outputTokens: 0,
+              totalCost: 0
+            }}
           />
         );
       case 3:
