@@ -171,9 +171,6 @@ function SimulationWizard({ setUser }: SimulationWizardProps) {
             >
               New Question
             </Button>
-            <Button variant="outlined" color="secondary" onClick={handleSignOut}>
-              Sign Out
-            </Button>
           </>
         ) : (
           <>
@@ -197,9 +194,6 @@ function SimulationWizard({ setUser }: SimulationWizardProps) {
             >
               {loading ? <CircularProgress size={24} /> : 
                 activeStep === steps.length - 2 ? 'Submit' : 'Next'}
-            </Button>
-            <Button variant="outlined" color="secondary" onClick={handleSignOut}>
-              Sign Out
             </Button>
           </>
         )}
