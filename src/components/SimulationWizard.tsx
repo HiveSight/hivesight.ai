@@ -19,6 +19,7 @@ import { initializeEncoder } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 import AppLayout from './AppLayout';
+import CostEstimation from './CostEstimation';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
@@ -115,7 +116,7 @@ function SimulationWizard() {
             perspective={perspective}
             ageRange={ageRange}
             model={model}
-            onSubmit={handleSubmit}
+            costEstimation={CostEstimation}
           />
         );
       case 3:
