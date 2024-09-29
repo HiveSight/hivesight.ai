@@ -4,11 +4,11 @@ import {
   Button, 
   Box, 
   CircularProgress, 
-  Paper, 
   Stepper, 
   Step, 
   StepLabel
 } from '@mui/material';
+import AppLayout from './AppLayout';
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
@@ -125,23 +125,27 @@ function SimulationWizard() {
   };
 
   return (
-    <Paper elevation={3} style={{ padding: '2rem', marginTop: '2rem' }}>
-      <Typography variant="h4" component="h1" gutterBottom align="center">
-        🐝 HiveSight
+    <AppLayout>
+      <Typography variant="h4" component="h2" align="center" gutterBottom>
+        Simulation Wizard
       </Typography>
-      <Stepper activeStep={activeStep} alternativeLabel style={{ marginBottom: '2rem' }}>
+
+      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
         {steps.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>
           </Step>
         ))}
       </Stepper>
-      <Box mb={4}>
+
+      <Box flexGrow={1}>
         {getStepContent(activeStep)}
       </Box>
+
       {error && (
         <Typography color="error" gutterBottom>{error}</Typography>
       )}
+
       <Box mt={2} display="flex" justifyContent="space-between">
         {activeStep === steps.length - 1 ? (
           <Button
@@ -177,7 +181,7 @@ function SimulationWizard() {
           </>
         )}
       </Box>
-    </Paper>
+    </AppLayout>
   );
 }
 
