@@ -19,7 +19,6 @@ import { initializeEncoder } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 import AppLayout from './AppLayout';
-import CostEstimation from './CostEstimation';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
