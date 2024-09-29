@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
-  Typography, 
-  Button, 
-  Box, 
-  Stepper, 
-  Step, 
-  StepLabel
+import {
+  Typography,
+  Button,
+  Box,
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  Container,
 } from '@mui/material';
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
@@ -13,12 +15,10 @@ import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
 import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
-import { initializeEncoder, estimateCost } from '../utils/tokenEstimation';
+import { initializeEncoder } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 import AppLayout from './AppLayout';
-import { Container } from '@mui/material';
-import { queryOpenAI } from '../services/openAIService';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
@@ -26,93 +26,61 @@ function SimulationWizard() {
   const [responseTypes, setResponseTypes] = useState<string[]>([]);
   const [hiveSize, setHiveSize] = useState(10);
   const [perspective, setPerspective] = useState('general_gpt');
-  const [results, setResults] = useState<ResponseData | null>(null);  // Set the type to ResponseData or null
+  const [results, setResults] = useState<ResponseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
   const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
-  const [costEstimation, setCostEstimation] = useState<{ inputTokens: number; outputTokens: number; totalCost: number } | null>(null);
-  const [encoderReady, setEncoderReady] = useState(false);
-  const [model, setModel] = useState<ModelType>('GPT-4o'); 
+  const [model, setModel] = useState<ModelType>('GPT-4o');
   const [error, setError] = useState<string | null>(null);
-
-  const convertToResponseType = (types: string[]): ResponseType[] => {
-    const validTypes: ResponseType[] = ['open_ended', 'likert'];
-    
-    return types.filter((type): type is ResponseType => (validTypes as string[]).includes(type));
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadPerspectives();
-    initializeEncoder().then(() => setEncoderReady(true));
+    initializeEncoder();
   }, []);
-
-  useEffect(() => {
-    if (encoderReady && question && responseTypes.length > 0) {
-      const cost = estimateCost(question, responseTypes, hiveSize, model, 150);
-      setCostEstimation(cost);
-    } else {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    }
-  };
 
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const fetchResults = async () => {
-    try {
-      const prompt = `Question: ${question}\nResponse Types: ${responseTypes.join(', ')}\nHive Size: ${hiveSize}\nPerspective: ${perspective}\nAge Range: ${ageRange[0]}-${ageRange[1]}\nModel: ${model}`;
-      
-      const result = await queryOpenAI(prompt, model);
-      console.log('Results:', result);
-      setResults(result);
-    } catch (error) {
-      console.error('Error fetching results:', error);
-      setResults('An error occurred while fetching results.');
+  const handleNext = async () => {
+    if (activeStep === 2) {
+      await handleSubmit();
+    } else {
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
   };
 
   const handleSubmit = async () => {
+    setIsLoading(true);
     if (!question || responseTypes.length === 0) {
       setError('Please fill in all required fields before submitting.');
       return;
     }
-  
+
     setLoading(true);
     setError(null);
     try {
-      const validResponseTypes = convertToResponseType(responseTypes); // Convert to valid ResponseType[]
-  
+      const validResponseTypes = responseTypes as ResponseType[];
+
       const data = await getResponses({
-        question, 
-        responseTypes: validResponseTypes,  // Pass the converted ResponseType array here
-        hiveSize, 
+        question,
+        responseTypes: validResponseTypes,
+        hiveSize,
         perspective,
         ageRange,
         incomeRange,
-        model
+        model,
       });
-      setResults(data);  // Now results accepts ResponseData
-      setActiveStep(3);  // Move to results step
+      setResults(data);
+      setActiveStep(3);
     } catch (error) {
       console.error('Error fetching responses:', error);
       setError('Error fetching responses. Please try again.');
     } finally {
       setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleNewQuestion = () => {
-    setQuestion('');
-    setResponseTypes([]);
-    setHiveSize(10);
-    setPerspective('general_gpt');
-    setResults(null);  // Reset results to null
-    setAgeRange([18, 100]);
-    setIncomeRange([0, 1000000]);
-    setModel('GPT-4o');
-    setActiveStep(0);
-    setError(null);
   };
 
   const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
@@ -140,29 +108,21 @@ function SimulationWizard() {
         );
       case 2:
         return (
-          <>
-            {console.log('About to render ReviewSubmit')}
-            <ReviewSubmit
-              question={question}
-              responseTypes={responseTypes}
-              hiveSize={hiveSize}
-              perspective={perspective}
-              ageRange={ageRange}
-              model={model}
-              onSubmit={handleSubmit}
-            />
-            {console.log('After rendering ReviewSubmit')}
-          </>
-        );
-      case 3:
-        return results && (
-          <ResultsDisplay
+          <ReviewSubmit
+            question={question}
             responseTypes={responseTypes}
             hiveSize={hiveSize}
             perspective={perspective}
             ageRange={ageRange}
-            results={results}
+            model={model}
+            onSubmit={handleSubmit}
           />
+        );
+      case 3:
+        return (
+          results && (
+            <ResultsDisplay responseTypes={responseTypes} results={results} />
+          )
         );
       default:
         return 'Unknown step';
@@ -179,7 +139,7 @@ function SimulationWizard() {
           width: '100vw',
           height: '100vh',
           overflow: 'auto',
-          backgroundColor: '#f5f5f5', // Light grey background
+          backgroundColor: '#f5f5f5',
         }}
       >
         {/* HiveSight logo and name in upper left */}
@@ -212,6 +172,11 @@ function SimulationWizard() {
             ))}
           </Stepper>
           <Box sx={{ mt: 4, mb: 4 }}>{getStepContent(activeStep)}</Box>
+          {error && (
+            <Typography color="error" align="center">
+              {error}
+            </Typography>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button
               color="inherit"
@@ -221,10 +186,24 @@ function SimulationWizard() {
             >
               Back
             </Button>
-            <Button variant="contained" color="primary" onClick={handleNext} disabled={loading}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleNext}
+              disabled={loading}
+            >
               {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
             </Button>
           </Box>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" my={4}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            results && (
+              <ResultsDisplay responseTypes={responseTypes} results={results} />
+            )
+          )}
         </Container>
       </Box>
     </AppLayout>

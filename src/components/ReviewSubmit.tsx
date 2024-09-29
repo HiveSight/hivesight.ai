@@ -1,3 +1,4 @@
+import React from 'react';
 import { Typography, Box } from '@mui/material';
 import CostEstimation from './CostEstimation';
 
@@ -8,7 +9,6 @@ interface ReviewSubmitProps {
   perspective: string;
   model: string;
   costEstimation: { inputTokens: number; outputTokens: number; totalCost: number } | null;
-  onSubmit: () => void;
 }
 
 function ReviewSubmit({
@@ -17,14 +17,8 @@ function ReviewSubmit({
   hiveSize,
   perspective,
   model,
-  costEstimation,
-  onSubmit
+  costEstimation
 }: ReviewSubmitProps) {
-  const handleClick = () => {
-    console.log('Button clicked');
-    onSubmit();
-  };
-
   return (
     <Box>
       <Typography variant="h6" gutterBottom>Review your settings:</Typography>
@@ -34,7 +28,6 @@ function ReviewSubmit({
       <Typography><strong>Perspective:</strong> {perspective}</Typography>
       <Typography><strong>Model:</strong> {model}</Typography>
       <CostEstimation costEstimation={costEstimation} />
-      <button onClick={handleClick}>Next</button>
     </Box>
   );
 }
