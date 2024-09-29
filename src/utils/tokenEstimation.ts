@@ -1,7 +1,7 @@
-import { get_encoding } from '@dqbd/tiktoken';
+import { get_encoding, Tiktoken } from '@dqbd/tiktoken';
 import { MODEL_COST_MAP } from '../config';
 
-let encoder: any = null;
+let encoder: Tiktoken | null = null;
 
 export async function initializeEncoder() {
   if (!encoder) {

@@ -1,10 +1,11 @@
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from '@mui/material';
+import { TokenResponse } from '@react-oauth/google';
 
 interface GoogleSignInProps {
-  onSuccess: (tokenResponse: any) => void;
-  onError: (error: any) => void;
+  onSuccess: (tokenResponse: TokenResponse) => void;
+  onError: (error: Error) => void;
 }
 
 const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {

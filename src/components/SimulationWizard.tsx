@@ -9,7 +9,6 @@ import {
   Step, 
   StepLabel
 } from '@mui/material';
-import Grid from '@mui/material/Grid2';
 import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';

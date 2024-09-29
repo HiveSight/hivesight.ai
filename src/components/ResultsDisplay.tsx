@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Typography, Paper, Box, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Collapse, IconButton } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
@@ -22,6 +22,11 @@ interface ResultsDisplayProps {
   responseTypes: string[];
 }
 
+type ChartDataItem = {
+  name: string;
+  [key: string]: string | number;
+};
+
 function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
   const [tabValue, setTabValue] = useState(0);
   const [openRawResults, setOpenRawResults] = useState(false);
@@ -33,7 +38,7 @@ function ResultsDisplay({ results, responseTypes }: ResultsDisplayProps) {
   const agePivot = hasLikert ? createPivotTable(results.responses, 'age') : null;
   const incomePivot = hasLikert ? createPivotTable(results.responses, 'income') : null;
 
-  const renderChart = (data: any[], title: string) => (
+  const renderChart = (data: ChartDataItem[], title: string) => (
     <Box mt={2}>
       <Typography variant="h6" gutterBottom>
         {title}
