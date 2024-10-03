@@ -7,7 +7,7 @@ import {
 import SimulationWizard from './components/SimulationWizard';
 import LandingPage from './components/LandingPage';
 import { useState, useEffect } from 'react';
-import { supabase } from './components/supabaseClient';
+import { supabase } from './components/SupabaseClient';
 import { User } from '@supabase/supabase-js';
 
 const theme = createTheme({
