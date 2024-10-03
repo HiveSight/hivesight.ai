@@ -1,13 +1,9 @@
-import { React, useState } from 'react';
-import { Box, Typography, Container, Grid, Button } from '@mui/material';
+import React from 'react';
+import { Box, Typography, Container, Grid } from '@mui/material';
 import AppLayout from './AppLayout';
 import Login from './Login';
 
-interface LandingPageProps {
-  onSignIn: () => void;
-}
-
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
+const LandingPage: React.FC = () => {
   return (
     <AppLayout>
       <Box
