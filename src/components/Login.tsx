@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@mui/material';
-import { supabase } from './supabaseClient';
+import { supabase } from './SupabaseClient';
 
 
 const Login: React.FC = () => {
