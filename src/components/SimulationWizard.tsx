@@ -119,7 +119,6 @@ function SimulationWizard() {
           results && (
             <>
               <ResultsDisplay responseTypes={responseTypes} results={results} />
-              <ResponseSummary responses={results.responses} model={model} />
             </>
           )
         );
