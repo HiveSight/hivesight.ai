@@ -26,7 +26,7 @@ export async function handleSubmit({
 }: SimulationParams & {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setResults: (results: any) => void;
+  setResults: <T>(results: T) => void;
   setActiveStep: (step: number) => void;
 }) {
   if (!question || responseTypes.length === 0) {

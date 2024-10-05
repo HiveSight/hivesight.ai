@@ -5,6 +5,12 @@ interface OpenAIResponse {
   content: string;
 }
 
+interface Choice {
+  message: {
+    content: string;
+  };
+}
+
 export async function queryOpenAI(prompts: string | string[], model: ModelType): Promise<OpenAIResponse[]> {
   if (!MODEL_MAP[model]) {
     throw new Error(`Invalid model: ${model}`);
@@ -34,7 +40,7 @@ export async function queryOpenAI(prompts: string | string[], model: ModelType):
 
     console.log(`[OpenAI Service] Received ${response.data.choices.length} response(s) from API`);
 
-    return response.data.choices.map((choice: any) => ({
+    return response.data.choices.map((choice: Choice) => ({
       content: choice.message.content,
     }));
   } catch (error) {
