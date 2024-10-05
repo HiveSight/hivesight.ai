@@ -67,12 +67,12 @@ function SimulationWizard() {
         setActiveStep,
       });
     } else {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      setActiveStep((prevActiveStep: number) => prevActiveStep + 1);
     }
   };
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    setActiveStep((prevActiveStep: number) => prevActiveStep - 1);
   };
 
   const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
