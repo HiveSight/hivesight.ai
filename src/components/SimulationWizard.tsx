@@ -1,6 +1,4 @@
-// src/components/SimulationWizard.tsx
-
-import React, { useState, useEffect } from 'react';
+import {useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -16,11 +14,8 @@ import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
 import ResponseSummary from './ResponseSummary';
-import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder } from '../utils/tokenEstimation';
-import { ResponseData, ResponseType, SimulationParams } from '../types';
-import { ModelType } from '../config';
 import AppLayout from './AppLayout';
 import { useSimulationState } from '../hooks/useSimulationState';
 import { handleSignOut, handleSubmit } from '../utils/simulationHandlers';

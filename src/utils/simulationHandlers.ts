@@ -1,5 +1,3 @@
-// src/utils/simulationHandlers.ts
-
 import { getResponses } from '../services/api';
 import { supabase } from '../components/SupabaseClient';
 import { SimulationParams } from '../types';
