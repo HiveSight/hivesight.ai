@@ -13,7 +13,6 @@ import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
-import ResponseSummary from './ResponseSummary';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder } from '../utils/tokenEstimation';
 import AppLayout from './AppLayout';
