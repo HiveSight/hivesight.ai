@@ -2,23 +2,37 @@ import { PersonaData, ResponseType } from '../types';
 import { queryOpenAI } from './openAIService';
 import { ModelType } from '../config';
 
-export async function generateResponse(
+export async function generateResponses(
   question: string,
   responseTypes: ResponseType[],
   perspective: string,
-  persona: PersonaData,
+  personas: PersonaData[],
   model: ModelType
 ) {
-  const prompt = createPrompt(question, responseTypes, perspective, persona);
-  const response = await queryOpenAI(prompt, model);
-  return {
+  console.log(`[Response Generation] Generating responses for ${personas.length} personas`);
+  console.log(`[Response Generation] Question: "${question}"`);
+  console.log(`[Response Generation] Response Types: ${responseTypes.join(', ')}`);
+  console.log(`[Response Generation] Perspective: ${perspective}`);
+  console.log(`[Response Generation] Model: ${model}`);
+
+  const prompts = personas.map(persona => createPrompt(question, responseTypes, perspective, persona));
+  console.log(`[Response Generation] Created ${prompts.length} prompts`);
+
+  const responses = await queryOpenAI(prompts, model);
+  console.log(`[Response Generation] Received ${responses.length} responses from OpenAI service`);
+
+  const parsedResponses = personas.map((persona, index) => ({
     perspective,
     age: persona.age,
     income: persona.income,
     state: persona.state,
-    ...parseResponse(response, responseTypes),
-  };
+    ...parseResponse(responses[index].content, responseTypes),
+  }));
+
+  console.log(`[Response Generation] Parsed ${parsedResponses.length} responses`);
+  return parsedResponses;
 }
+
 
 function createPrompt(
   question: string,
