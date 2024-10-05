@@ -1,4 +1,4 @@
-import {useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -19,7 +19,6 @@ import { initializeEncoder } from '../utils/tokenEstimation';
 import AppLayout from './AppLayout';
 import { useSimulationState } from '../hooks/useSimulationState';
 import { handleSignOut, handleSubmit } from '../utils/simulationHandlers';
-import { ResponseType } from '../types';
 
 function SimulationWizard() {
   const {
@@ -86,7 +85,7 @@ function SimulationWizard() {
         return (
           <ConfigureSimulation
             responseTypes={responseTypes}
-            setResponseTypes={handleSetResponseTypes}
+            setResponseTypes={setResponseTypes}
             hiveSize={hiveSize}
             setHiveSize={setHiveSize}
             incomeRange={incomeRange}
@@ -127,12 +126,6 @@ function SimulationWizard() {
       default:
         return 'Unknown step';
     }
-  };
-
-  const handleSetResponseTypes = (types: string[]) => {
-    setResponseTypes(types.filter((type): type is ResponseType => {
-      return type === 'success' || type === 'warning' || type === 'info';
-    }));
   };
 
   return (
@@ -188,7 +181,7 @@ function SimulationWizard() {
           <Button 
             variant="contained" 
             color="primary" 
-            onClick={() => handleSignOut()}
+            onClick={handleSignOut}
             sx={{ mt: 2 }}
           >
             Sign Out

@@ -1,24 +1,24 @@
 import React from 'react';
 import { FormGroup, FormControlLabel, Checkbox, Typography } from '@mui/material';
-
+import { ResponseType } from '../types';
 
 interface ResponseTypeSelectorProps {
-  responseTypes: string[];
-  setResponseTypes: (responseTypes: string[]) => void;
+  responseTypes: ResponseType[];
+  setResponseTypes: React.Dispatch<React.SetStateAction<ResponseType[]>>;
 }
 
 function ResponseTypeSelector({ responseTypes, setResponseTypes }: ResponseTypeSelectorProps) {
   const options = [
-    { label: 'Open-ended', value: 'open_ended' },
-    { label: 'Likert Scale', value: 'likert' },
+    { label: 'Open-ended', value: 'open_ended' as ResponseType },
+    { label: 'Likert Scale', value: 'likert' as ResponseType },
   ];
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = event.target;
-    setResponseTypes(
+    setResponseTypes(prevTypes => 
       checked
-        ? [...responseTypes, value]
-        : responseTypes.filter((type) => type !== value)
+        ? [...prevTypes, value as ResponseType]
+        : prevTypes.filter(type => type !== value)
     );
   };
 
