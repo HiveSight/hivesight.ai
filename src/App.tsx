@@ -6,7 +6,10 @@ import {
 } from '@mui/material';
 import SimulationWizard from './components/SimulationWizard';
 import LandingPage from './components/LandingPage';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from './components/SupabaseClient';
+import { User } from '@supabase/supabase-js';
+
 const theme = createTheme({
   typography: {
     fontFamily: 'Poppins, Arial, sans-serif',
@@ -14,22 +17,31 @@ const theme = createTheme({
 });
 
 function App() {
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
-  const handleSignIn = () => {
-    // Here you would typically handle the actual sign-in process
-    // For now, we'll just set isSignedIn to true
-    setIsSignedIn(true);
-  };
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      console.log("supabase user is", user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="md">
-        {isSignedIn ? (
+        {user ? (
           <SimulationWizard />
         ) : (
-          <LandingPage onSignIn={handleSignIn} />
+          <LandingPage />
         )}
       </Container>
     </ThemeProvider>

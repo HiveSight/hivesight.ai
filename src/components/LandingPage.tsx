@@ -1,12 +1,9 @@
 import React from 'react';
-import { Box, Typography, Container, Grid, Button } from '@mui/material';
+import { Box, Typography, Container, Grid } from '@mui/material';
 import AppLayout from './AppLayout';
+import Login from './Login';
 
-interface LandingPageProps {
-  onSignIn: () => void;
-}
-
-const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
+const LandingPage: React.FC = () => {
   return (
     <AppLayout>
       <Box
@@ -63,9 +60,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
           <Typography variant="h2" component="h2" gutterBottom align="center" sx={{ maxWidth: '80%', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
             Harness Collective<br></br>Artificial Intelligence
           </Typography>
-          <Button variant="contained" color="primary" onClick={onSignIn} sx={{ mt: 2 }}>
-            Simulate Sign In
-          </Button>
+          <Login />   
         </Box>
       </Box>
       <Container maxWidth="md" sx={{ mt: '100vh', position: 'relative', zIndex: 1 }}>

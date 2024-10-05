@@ -19,6 +19,7 @@ import { initializeEncoder } from '../utils/tokenEstimation';
 import { ResponseData, ResponseType } from '../types';
 import { ModelType } from '../config';
 import AppLayout from './AppLayout';
+import { supabase } from './SupabaseClient';
 
 function SimulationWizard() {
   const [activeStep, setActiveStep] = useState(0);
@@ -38,6 +39,16 @@ function SimulationWizard() {
     loadPerspectives();
     initializeEncoder();
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      // The user state will be automatically updated by the listener in App.tsx
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
@@ -208,6 +219,14 @@ function SimulationWizard() {
               <ResultsDisplay responseTypes={responseTypes} results={results} />
             )
           )}
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleSignOut} 
+            sx={{ mt: 2 }}
+          >
+            Sign Out
+          </Button>
         </Container>
       </Box>
     </AppLayout>
