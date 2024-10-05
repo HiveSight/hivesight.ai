@@ -1,6 +1,6 @@
 import { getResponses } from '../services/api';
 import { supabase } from '../components/SupabaseClient';
-import { SimulationParams } from '../types';
+import { ResponseData } from '../types';
 
 export async function handleSignOut() {
   try {
@@ -11,7 +11,21 @@ export async function handleSignOut() {
   }
 }
 
-export async function handleSubmit({
+interface SimulationParams {
+  question: string;
+  responseTypes: string[];
+  hiveSize: number;
+  perspective: string;
+  ageRange: [number, number];
+  incomeRange: [number, number];
+  model: string;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  setResults: React.Dispatch<React.SetStateAction<ResponseData | null>>;
+  setActiveStep: (step: number) => void;
+}
+
+export const handleSubmit = async ({
   question,
   responseTypes,
   hiveSize,
@@ -23,12 +37,7 @@ export async function handleSubmit({
   setError,
   setResults,
   setActiveStep,
-}: SimulationParams & {
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  setResults: <T>(results: T) => void;
-  setActiveStep: (step: number) => void;
-}) {
+}: SimulationParams) => {
   if (!question || responseTypes.length === 0) {
     setError('Please fill in all required fields before submitting.');
     return;
@@ -39,12 +48,12 @@ export async function handleSubmit({
   try {
     const data = await getResponses({
       question,
-      responseTypes,
+      responseTypes: responseTypes.map(type => type as import("../types").ResponseType),
       hiveSize,
       perspective,
       ageRange,
       incomeRange,
-      model,
+      model: model as "GPT-4o" | "GPT-4o-mini",
     });
     setResults(data);
     setActiveStep(3);
@@ -54,4 +63,4 @@ export async function handleSubmit({
   } finally {
     setLoading(false);
   }
-}
+};

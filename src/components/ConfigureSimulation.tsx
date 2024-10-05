@@ -30,7 +30,7 @@ function ConfigureSimulation(props: ConfigureSimulationProps) {
           <Typography variant="h6" gutterBottom>Response Configuration</Typography>
           <ResponseTypeSelector 
             responseTypes={props.responseTypes} 
-            setResponseTypes={props.setResponseTypes} 
+            setResponseTypes={(newTypes: string[]) => props.setResponseTypes(newTypes)} 
           />
           <HiveSizeSelector 
             hiveSize={props.hiveSize} 
