@@ -10,10 +10,10 @@ interface ResponseSummaryProps {
     income: number;
     state: string;
   }>;
-  model: ModelType;
+  model?: ModelType;
 }
 
-const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses, model }) => {
+const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses, model = 'GPT-4o-mini' }) => {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ Write your result in plain text, not markdown.
 `;
 
       try {
-        console.log('[Response Summary] Generating summary');
+        console.log(`[Response Summary] Generating summary using model: ${model}`);
         const result = await queryOpenAI([prompt], model);
         setSummary(result[0].content);
       } catch (error) {
