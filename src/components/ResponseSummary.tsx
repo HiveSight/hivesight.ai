@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Paper, CircularProgress } from '@mui/material';
 import { queryOpenAI } from '../services/openAIService';
+import { ModelType } from '../config';
 
 interface ResponseSummaryProps {
   responses: Array<{ 
@@ -9,9 +10,10 @@ interface ResponseSummaryProps {
     income: number;
     state: string;
   }>;
+  model?: ModelType;
 }
 
-const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses }) => {
+const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses, model = 'GPT-4o-mini' }) => {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +41,11 @@ Please provide:
 
 Write your result in plain text, not markdown.
 `;
-      
+
       try {
-        const result = await queryOpenAI(prompt, 'GPT-4o'); // Using GPT-4o for summarization
-        setSummary(result);
+        console.log(`[Response Summary] Generating summary using model: ${model}`);
+        const result = await queryOpenAI(prompt, model);
+        setSummary(result[0].content);
       } catch (error) {
         console.error('Error generating summary:', error);
         setError('Unable to generate summary. Please try again later.');
@@ -52,7 +55,8 @@ Write your result in plain text, not markdown.
     };
 
     getSummary();
-  }, [responses]);
+  }, [responses, model]);
+
 
   if (loading) {
     return (

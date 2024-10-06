@@ -2,23 +2,38 @@ import { PersonaData, ResponseType } from '../types';
 import { queryOpenAI } from './openAIService';
 import { ModelType } from '../config';
 
-export async function generateResponse(
+export async function generateResponses(
   question: string,
   responseTypes: ResponseType[],
   perspective: string,
-  persona: PersonaData,
+  personas: PersonaData[],
   model: ModelType
 ) {
-  const prompt = createPrompt(question, responseTypes, perspective, persona);
-  const response = await queryOpenAI(prompt, model);
-  return {
+  console.log(`[Response Generation] Generating responses for ${personas.length} personas`);
+  console.log(`[Response Generation] Question: "${question}"`);
+  console.log(`[Response Generation] Response Types: ${responseTypes.join(', ')}`);
+  console.log(`[Response Generation] Perspective: ${perspective}`);
+  console.log(`[Response Generation] Model: ${model}`);
+
+  const isGeneralGPT = perspective === 'general_gpt';
+  const prompt = createPrompt(question, responseTypes, perspective, personas[0]);
+  console.log(`[Response Generation] Created prompt for ${isGeneralGPT ? 'general_gpt' : 'specific personas'}`);
+
+  const responses = await queryOpenAI(prompt, model, isGeneralGPT ? personas.length : 1);
+  console.log(`[Response Generation] Received ${responses.length} responses from OpenAI service`);
+
+  const parsedResponses = personas.map((persona, index) => ({
     perspective,
     age: persona.age,
     income: persona.income,
     state: persona.state,
-    ...parseResponse(response, responseTypes),
-  };
+    ...parseResponse(responses[index % responses.length].content, responseTypes),
+  }));
+
+  console.log(`[Response Generation] Parsed ${parsedResponses.length} responses`);
+  return parsedResponses;
 }
+
 
 function createPrompt(
   question: string,
