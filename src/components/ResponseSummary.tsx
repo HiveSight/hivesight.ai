@@ -44,7 +44,7 @@ Write your result in plain text, not markdown.
 
       try {
         console.log(`[Response Summary] Generating summary using model: ${model}`);
-        const result = await queryOpenAI([prompt], model);
+        const result = await queryOpenAI(prompt, model);
         setSummary(result[0].content);
       } catch (error) {
         console.error('Error generating summary:', error);
