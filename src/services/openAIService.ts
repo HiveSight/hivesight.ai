@@ -11,24 +11,22 @@ interface Choice {
   };
 }
 
-export async function queryOpenAI(prompts: string | string[], model: ModelType): Promise<OpenAIResponse[]> {
+export async function queryOpenAI(prompt: string, model: ModelType, n: number = 1): Promise<OpenAIResponse[]> {
   if (!MODEL_MAP[model]) {
     throw new Error(`Invalid model: ${model}`);
   }
 
-  const promptArray = Array.isArray(prompts) ? prompts : [prompts];
-
-  console.log(`[OpenAI Service] Making API call with ${promptArray.length} prompt(s) using model ${model}`);
+  console.log(`[OpenAI Service] Making API call with prompt using model ${model}, n=${n}`);
 
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
         model: MODEL_MAP[model],
-        messages: promptArray.map(prompt => ({ role: 'user', content: prompt })),
-        temperature: 0.7,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 1.0,
         max_tokens: 500,
-        n: promptArray.length,
+        n: n,
       },
       {
         headers: {

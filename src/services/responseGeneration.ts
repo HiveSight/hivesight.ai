@@ -15,10 +15,11 @@ export async function generateResponses(
   console.log(`[Response Generation] Perspective: ${perspective}`);
   console.log(`[Response Generation] Model: ${model}`);
 
-  const prompts = personas.map(persona => createPrompt(question, responseTypes, perspective, persona));
-  console.log(`[Response Generation] Created ${prompts.length} prompts`);
+  const isGeneralGPT = perspective === 'general_gpt';
+  const prompt = createPrompt(question, responseTypes, perspective, personas[0]);
+  console.log(`[Response Generation] Created prompt for ${isGeneralGPT ? 'general_gpt' : 'specific personas'}`);
 
-  const responses = await queryOpenAI(prompts, model);
+  const responses = await queryOpenAI(prompt, model, isGeneralGPT ? personas.length : 1);
   console.log(`[Response Generation] Received ${responses.length} responses from OpenAI service`);
 
   const parsedResponses = personas.map((persona, index) => ({
@@ -26,7 +27,7 @@ export async function generateResponses(
     age: persona.age,
     income: persona.income,
     state: persona.state,
-    ...parseResponse(responses[index].content, responseTypes),
+    ...parseResponse(responses[index % responses.length].content, responseTypes),
   }));
 
   console.log(`[Response Generation] Parsed ${parsedResponses.length} responses`);
