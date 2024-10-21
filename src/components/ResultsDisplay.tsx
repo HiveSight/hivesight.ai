@@ -110,11 +110,7 @@ function ResultsDisplay({ responseTypes, results }: ResultsDisplayProps) {
         <Typography variant="h6" gutterBottom>
           Raw Results
           <IconButton onClick={() => setOpenRawResults(!openRawResults)}>
-            {openRawResults ? (
-              <KeyboardArrowUp />
-            ) : (
-              <KeyboardArrowDown />
-            )}
+            {openRawResults ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
           </IconButton>
         </Typography>
         <Collapse in={openRawResults}>

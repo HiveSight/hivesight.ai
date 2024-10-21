@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -13,85 +13,65 @@ import QuestionInput from './QuestionInput';
 import ConfigureSimulation from './ConfigureSimulation';
 import ReviewSubmit from './ReviewSubmit';
 import ResultsDisplay from './ResultsDisplay';
-import { getResponses } from '../services/api';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder } from '../utils/tokenEstimation';
-import { ResponseData, ResponseType } from '../types';
-import { ModelType } from '../config';
 import AppLayout from './AppLayout';
-import { supabase } from './SupabaseClient';
+import { useSimulationState } from '../hooks/useSimulationState';
+import { handleSignOut, handleSubmit } from '../utils/simulationHandlers';
 
 function SimulationWizard() {
-  const [activeStep, setActiveStep] = useState(0);
-  const [question, setQuestion] = useState('');
-  const [responseTypes, setResponseTypes] = useState<string[]>([]);
-  const [hiveSize, setHiveSize] = useState(10);
-  const [perspective, setPerspective] = useState('general_gpt');
-  const [results, setResults] = useState<ResponseData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [ageRange, setAgeRange] = useState<[number, number]>([18, 100]);
-  const [incomeRange, setIncomeRange] = useState<[number, number]>([0, 1000000]);
-  const [model, setModel] = useState<ModelType>('GPT-4o');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    activeStep,
+    setActiveStep,
+    question,
+    setQuestion,
+    responseTypes,
+    setResponseTypes,
+    hiveSize,
+    setHiveSize,
+    perspective,
+    setPerspective,
+    results,
+    setResults,
+    loading,
+    setLoading,
+    ageRange,
+    setAgeRange,
+    incomeRange,
+    setIncomeRange,
+    model,
+    setModel,
+    error,
+    setError,
+  } = useSimulationState();
 
   useEffect(() => {
     loadPerspectives();
     initializeEncoder();
   }, []);
 
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // The user state will be automatically updated by the listener in App.tsx
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
   const handleNext = async () => {
     if (activeStep === 2) {
-      await handleSubmit();
-    } else {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    if (!question || responseTypes.length === 0) {
-      setError('Please fill in all required fields before submitting.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const validResponseTypes = responseTypes as ResponseType[];
-
-      const data = await getResponses({
+      await handleSubmit({
         question,
-        responseTypes: validResponseTypes,
+        responseTypes,
         hiveSize,
         perspective,
         ageRange,
         incomeRange,
         model,
+        setLoading,
+        setError,
+        setResults,
+        setActiveStep,
       });
-      setResults(data);
-      setActiveStep(3);
-    } catch (error) {
-      console.error('Error fetching responses:', error);
-      setError('Error fetching responses. Please try again.');
-    } finally {
-      setLoading(false);
-      setIsLoading(false);
+    } else {
+      setActiveStep((prevActiveStep: number) => prevActiveStep + 1);
     }
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevActiveStep: number) => prevActiveStep - 1);
   };
 
   const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
@@ -136,7 +116,9 @@ function SimulationWizard() {
       case 3:
         return (
           results && (
-            <ResultsDisplay responseTypes={responseTypes} results={results} />
+            <>
+              <ResultsDisplay responseTypes={responseTypes} results={results} />
+            </>
           )
         );
       default:
@@ -157,27 +139,6 @@ function SimulationWizard() {
           backgroundColor: '#f5f5f5',
         }}
       >
-        {/* HiveSight logo and name in upper left */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            display: 'flex',
-            alignItems: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <img
-            src="/logo.png"
-            alt="HiveSight Logo"
-            style={{ height: '24px', marginRight: '10px' }}
-          />
-          <Typography variant="h6" component="h1">
-            HiveSight
-          </Typography>
-        </Box>
-
         <Container maxWidth="md" sx={{ mt: 8, mb: 4 }}>
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
             {steps.map((label) => (
@@ -210,19 +171,15 @@ function SimulationWizard() {
               {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
             </Button>
           </Box>
-          {isLoading ? (
+          {loading && (
             <Box display="flex" justifyContent="center" my={4}>
               <CircularProgress />
             </Box>
-          ) : (
-            results && (
-              <ResultsDisplay responseTypes={responseTypes} results={results} />
-            )
           )}
           <Button 
             variant="contained" 
             color="primary" 
-            onClick={handleSignOut} 
+            onClick={handleSignOut}
             sx={{ mt: 2 }}
           >
             Sign Out

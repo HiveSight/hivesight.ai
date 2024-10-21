@@ -1,15 +1,16 @@
-import Grid from '@mui/material/Grid2';
-import { Typography, Paper } from '@mui/material';
-import ResponseTypeSelector from './ResponseTypeSelector';
-import HiveSizeSelector from './HiveSizeSelector';
 import PerspectiveSelector from './PerspectiveSelector';
 import DemographicFilters from './DemographicFilters';
 import ModelSelector from './ModelSelector';
 import { ModelType } from '../config';
+import { ResponseType } from '../types';
+import Grid from '@mui/material/Grid2';
+import { Typography, Paper } from '@mui/material';
+import ResponseTypeSelector from './ResponseTypeSelector';
+import HiveSizeSelector from './HiveSizeSelector';
 
 interface ConfigureSimulationProps {
-  responseTypes: string[];
-  setResponseTypes: (types: string[]) => void;
+  responseTypes: ResponseType[];
+  setResponseTypes: React.Dispatch<React.SetStateAction<ResponseType[]>>;
   hiveSize: number;
   setHiveSize: (size: number) => void;
   perspective: string;
