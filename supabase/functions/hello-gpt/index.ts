@@ -2,6 +2,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 Deno.serve(async (req: Request) => {
   try {
+
+    // Get the requester_name from the request body
+    const { requester_name } = await req.json()
+
     // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -19,7 +23,7 @@ Deno.serve(async (req: Request) => {
         model: 'gpt-3.5-turbo',
         messages: [{ 
           role: 'user', 
-          content: 'Say hello to the world in a creative way!' 
+          content: `Say hello to ${requester_name || 'the world'} in a creative way!` 
         }],
         temperature: 0.7,
         max_tokens: 100,
