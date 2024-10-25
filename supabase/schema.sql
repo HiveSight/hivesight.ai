@@ -4,42 +4,35 @@ create table gpt_hellos (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Set up RLS (Row Level Security)
+create table hello_triggers (
+    id uuid default uuid_generate_v4() primary key,
+    requester_name text not null,
+    status text default 'pending'::text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Set up RLS (Row Level Security) with default deny on everything
 alter table gpt_hellos enable row level security;
+alter table hello_triggers enable row level security;
 
--- Allow all authenticated users to read
-create policy "Anyone can read hellos"
-  on gpt_hellos for select
+-- Policies
+create policy "Users can only trigger hellos as themselves"
+  on hello_triggers for insert
   to authenticated
-  using (true);
+  with check (requester_name = auth.email());
 
--- Allow all authenticated users to insert
-create policy "Anyone can create hellos"
-  on gpt_hellos for insert
-  to authenticated
-  with check (true);
+CREATE POLICY "Users can view their own triggers"
+  ON hello_triggers FOR SELECT
+  TO authenticated
+  USING (requester_name = auth.email());
 
-
--- Create the hello_requests table that will trigger our function
-create table public.hello_requests (
-  id uuid default gen_random_uuid() primary key,
-  requester_name text,
-  requested_at timestamp with time zone default now(),
-  status text default 'pending'
-);
-
--- Create the existing gpt_hellos table if it doesn't exist
-create table public.gpt_hellos (
-  id uuid default gen_random_uuid() primary key,
-  message text not null,
-  created_at timestamp with time zone default now(),
-  request_id uuid references public.hello_requests(id)
-);
-
--- Enable row level security
-alter table public.hello_requests enable row level security;
-alter table public.gpt_hellos enable row level security;
-
+CREATE POLICY "Users can view their own messages"
+  ON gpt_hellos FOR SELECT
+  TO authenticated
+  USING (id IN (
+    SELECT id FROM hello_triggers 
+    WHERE requester_name = auth.email()
+  ));
 
 -- Create a webhook that triggers when a new hello request is created
 CREATE OR REPLACE FUNCTION public.handle_new_hello_trigger()
@@ -53,13 +46,17 @@ BEGIN
     )::jsonb
   );
 
-  UPDATE hello_triggers 
-  SET status = 'completed' 
-  WHERE id = NEW.id;
-
+  UPDATE hello_triggers SET status = 'completed' WHERE id = NEW.id;
   RETURN NEW;
+
+  EXCEPTION WHEN OTHERS THEN
+  -- Catch all PL/pgsql exception, reaches here if http_post fails
+  UPDATE hello_triggers SET status = 'error' WHERE id = NEW.id;
+  RETURN NEW;
+
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+ -- SECURITY DEFINER function is executed with the privileges of the user that owns it
 
 -- Create the trigger
 create trigger on_hello_trigger_created
