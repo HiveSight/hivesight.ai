@@ -190,7 +190,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.handle_new_hello_trigger()
 RETURNS trigger AS $$
 DECLARE
-    http_status integer;
+    service_role_key TEXT;
+    pgnet_id INTEGER;
+    http_status INTEGER;
 BEGIN
     IF NOT public.check_sufficient_credits(NEW.requester_name, 1) THEN
         UPDATE public.hello_triggers SET status = 'insufficient credits' WHERE id = NEW.id;
@@ -204,14 +206,26 @@ BEGIN
 
     UPDATE public.hello_triggers SET status = 'processing' WHERE id = NEW.id;
 
-    SELECT INTO http_status net.http_post(
-        url := 'https://ueguuautcrdolqpyyrjw.functions.supabase.co/hello-gpt'::text,
-        headers := '{"Content-Type": "application/json"}'::jsonb,
-        body := json_build_object(
-            'requester_name', NEW.requester_name,
-            'trigger_id', NEW.id
-        )::jsonb
+    SELECT decrypted_secret
+    INTO service_role_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'SUPABASE_SERVICE_ROLE_KEY';
+
+    SELECT INTO pgnet_id net.http_post(
+        url := 'https://ueguuautcrdolqpyyrjw.supabase.co/functions/v1/hello-gpt'::text,
+        headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || service_role_key
+        ), 
+        body := jsonb_build_object(
+            'requester_name', NEW.requester_name
+        )
     );
+
+    SELECT status_code
+    INTO http_status
+    FROM net._http_response
+    WHERE id = pgnet_id;
 
     IF http_status != 200 THEN
         PERFORM public.refund_credits(NEW.requester_name, 1, NULL);
