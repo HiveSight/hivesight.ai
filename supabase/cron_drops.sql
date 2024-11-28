@@ -80,6 +80,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- unschedule if you need to run it again
+SELECT cron.unschedule('process-credit-drops');
+
 -- Schedule the credit drop processor to run every minute
 SELECT cron.schedule(
     'process-credit-drops',
