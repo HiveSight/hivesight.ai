@@ -70,3 +70,9 @@ create or replace trigger create_stripe_customer_trigger
   for each row
   execute procedure public.create_stripe_customer_trigger();
 
+-- Clean up
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user;
+DROP TRIGGER IF EXISTS create_stripe_customer_trigger ON auth.users;
+DROP FUNCTION IF EXISTS public.create_stripe_customer_trigger;
+DROP TABLE IF EXISTS public.user_stripe_mapping;

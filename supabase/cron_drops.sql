@@ -204,6 +204,7 @@ SELECT cron.unschedule('process-credit-drops');
 
 -- Drop functions in reverse dependency order
 DROP FUNCTION IF EXISTS public.admin_set_user_tier(text, text);
+DROP TRIGGER IF EXISTS on_user_tier_change ON user_tiers;
 DROP FUNCTION IF EXISTS public.manage_user_tier();
 DROP FUNCTION IF EXISTS public.process_all_credit_drops();
 DROP FUNCTION IF EXISTS public.process_user_credit_drop(text);
