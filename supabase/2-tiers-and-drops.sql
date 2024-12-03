@@ -179,35 +179,35 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 -- Test script
-SELECT * FROM public.available_credits WHERE user_email = 'snoopy@gmail.com';
-
-SELECT * FROM public.user_tiers;
-
--- Set or Change tier
-SELECT public.admin_set_user_tier('snoopy@gmail.com', 'basic');
-
-SELECT * FROM public.credit_drops
-WHERE user_email = 'snoopy@gmail.com'
-ORDER BY created_at DESC;
-
--- Let's see and immediately check
-SELECT public.admin_set_user_tier('horsey@gmail.com', 'free');
-SELECT * FROM public.credit_drops WHERE user_email = 'horsey@gmail.com';
-SELECT * FROM public.available_credits WHERE user_email = 'horsey@gmail.com';
-
-
--- Cleanup
-DROP TRIGGER IF EXISTS on_user_tier_change ON public.user_tiers;
-
--- Remove scheduled job if it exists (only if pg_cron was successfully set up)
-SELECT cron.unschedule('process-credit-drops');
-
--- Drop functions in reverse dependency order
-DROP FUNCTION IF EXISTS public.admin_set_user_tier(text, text);
-DROP TRIGGER IF EXISTS on_user_tier_change ON user_tiers;
-DROP FUNCTION IF EXISTS public.manage_user_tier();
-DROP FUNCTION IF EXISTS public.process_all_credit_drops();
-DROP FUNCTION IF EXISTS public.process_user_credit_drop(text);
-
--- Drop tables (policies will be dropped automatically)
-DROP TABLE IF EXISTS public.user_tiers CASCADE;
+-- SELECT * FROM public.available_credits WHERE user_email = 'snoopy@gmail.com';
+-- 
+-- SELECT * FROM public.user_tiers;
+-- 
+-- -- Set or Change tier
+-- SELECT public.admin_set_user_tier('snoopy@gmail.com', 'basic');
+-- 
+-- SELECT * FROM public.credit_drops
+-- WHERE user_email = 'snoopy@gmail.com'
+-- ORDER BY created_at DESC;
+-- 
+-- -- Let's see and immediately check
+-- SELECT public.admin_set_user_tier('horsey@gmail.com', 'free');
+-- SELECT * FROM public.credit_drops WHERE user_email = 'horsey@gmail.com';
+-- SELECT * FROM public.available_credits WHERE user_email = 'horsey@gmail.com';
+-- 
+-- 
+-- -- Cleanup
+-- DROP TRIGGER IF EXISTS on_user_tier_change ON public.user_tiers;
+-- 
+-- -- Remove scheduled job if it exists (only if pg_cron was successfully set up)
+-- SELECT cron.unschedule('process-credit-drops');
+-- 
+-- -- Drop functions in reverse dependency order
+-- DROP FUNCTION IF EXISTS public.admin_set_user_tier(text, text);
+-- DROP TRIGGER IF EXISTS on_user_tier_change ON user_tiers;
+-- DROP FUNCTION IF EXISTS public.manage_user_tier();
+-- DROP FUNCTION IF EXISTS public.process_all_credit_drops();
+-- DROP FUNCTION IF EXISTS public.process_user_credit_drop(text);
+-- 
+-- -- Drop tables (policies will be dropped automatically)
+-- DROP TABLE IF EXISTS public.user_tiers CASCADE;

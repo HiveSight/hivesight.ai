@@ -279,50 +279,49 @@ create trigger on_hello_trigger_created
   for each row
   execute procedure public.handle_new_hello_trigger();
 
--- Test: will be a insufficient credits situation
-insert into public.hello_triggers (requester_name) 
-values ('snoopy@gmail.com')  -- note that we're not hitting the auth.users table yet.
-returning *;
 
-SELECT * FROM auth.users;  -- no snoopy
-SELECT * FROM public.hello_triggers;
-
--- Create Credit Drops
-SELECT public.admin_add_credit_drop('snoopy@gmail.com', 3);
-SELECT public.admin_add_credit_drop('snoopy@gmail.com', 10, interval '12 days');
-
--- Check available credits from the view
-SELECT * FROM public.credit_drops WHERE user_email = 'snoopy@gmail.com';
-SELECT * FROM public.available_credits WHERE user_email = 'snoopy@gmail.com';
-
--- Now try the insert again
-insert into public.hello_triggers (requester_name) 
-values ('snoopy@gmail.com')
-returning *;
-
-SELECT * FROM public.gpt_hellos;
-
-
-
--- Cleanup script to remove everything created
--- Note: Order matters due to dependencies
-
--- First remove trigger
-DROP TRIGGER IF EXISTS on_hello_trigger_created ON public.hello_triggers;
-
--- Drop view
-DROP VIEW IF EXISTS public.available_credits;
-
--- Drop functions
-DROP FUNCTION IF EXISTS public.get_total_available_credits(text);
-DROP FUNCTION IF EXISTS public.admin_add_credit_drop(text, integer, interval);
-DROP FUNCTION IF EXISTS public.consume_credits(text, integer);
-DROP FUNCTION IF EXISTS public.check_sufficient_credits(text, integer);
-DROP FUNCTION IF EXISTS public.get_credit_details(text);
-DROP FUNCTION IF EXISTS public.refund_credits(text, integer, uuid);
-DROP FUNCTION IF EXISTS public.handle_new_hello_trigger();
-
--- Drop tables (policies will be dropped automatically)
-DROP TABLE IF EXISTS public.credit_drops CASCADE;
-DROP TABLE IF EXISTS public.gpt_hellos CASCADE;
-DROP TABLE IF EXISTS public.hello_triggers CASCADE;
+  -- Test: will be a insufficient credits situation
+-- insert into public.hello_triggers (requester_name) 
+-- values ('snoopy@gmail.com')  -- note that we're not hitting the auth.users table yet.
+-- returning *;
+-- 
+-- SELECT * FROM auth.users;  -- no snoopy
+-- SELECT * FROM public.hello_triggers;
+-- 
+-- -- Create Credit Drops
+-- SELECT public.admin_add_credit_drop('snoopy@gmail.com', 3);
+-- SELECT public.admin_add_credit_drop('snoopy@gmail.com', 10, interval '12 days');
+-- 
+-- -- Check available credits from the view
+-- SELECT * FROM public.credit_drops WHERE user_email = 'snoopy@gmail.com';
+-- SELECT * FROM public.available_credits WHERE user_email = 'snoopy@gmail.com';
+-- 
+-- -- Now try the insert again
+-- insert into public.hello_triggers (requester_name) 
+-- values ('snoopy@gmail.com')
+-- returning *;
+-- 
+-- SELECT * FROM public.gpt_hellos;
+-- 
+-- 
+-- -- Cleanup script to remove everything created
+-- 
+-- -- First remove trigger
+-- DROP TRIGGER IF EXISTS on_hello_trigger_created ON public.hello_triggers;
+-- 
+-- -- Drop view
+-- DROP VIEW IF EXISTS public.available_credits;
+-- 
+-- -- Drop functions
+-- DROP FUNCTION IF EXISTS public.get_total_available_credits(text);
+-- DROP FUNCTION IF EXISTS public.admin_add_credit_drop(text, integer, interval);
+-- DROP FUNCTION IF EXISTS public.consume_credits(text, integer);
+-- DROP FUNCTION IF EXISTS public.check_sufficient_credits(text, integer);
+-- DROP FUNCTION IF EXISTS public.get_credit_details(text);
+-- DROP FUNCTION IF EXISTS public.refund_credits(text, integer, uuid);
+-- DROP FUNCTION IF EXISTS public.handle_new_hello_trigger();
+-- 
+-- -- Drop tables (policies will be dropped automatically)
+-- DROP TABLE IF EXISTS public.credit_drops CASCADE;
+-- DROP TABLE IF EXISTS public.gpt_hellos CASCADE;
+-- DROP TABLE IF EXISTS public.hello_triggers CASCADE;
