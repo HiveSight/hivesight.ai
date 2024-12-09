@@ -187,6 +187,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
+-- Remainder of this file is a demo of an OpenAI function that does check credits
+
 CREATE OR REPLACE FUNCTION public.handle_new_hello_trigger()
 RETURNS trigger AS $$
 DECLARE
