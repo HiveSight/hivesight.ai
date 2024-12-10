@@ -99,13 +99,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-    -- Assign free tier to new user
-    PERFORM public.admin_set_user_tier(NEW.user_id, 'free');
+    PERFORM public.admin_set_user_tier(NEW.id, 'free');
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger on auth.users to auto-assign free tier
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW

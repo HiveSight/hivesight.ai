@@ -1,8 +1,8 @@
 -- We have to use the public schema at least for the tables that the Edge function will access
 
 CREATE TABLE public.credit_drops (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_email text NOT NULL,
+    drop_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id uuid NOT NULL,
     amount integer NOT NULL CHECK (amount > 0),
     expires_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -15,26 +15,26 @@ ALTER TABLE public.credit_drops ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own credit drops"
     ON public.credit_drops FOR SELECT
     TO authenticated
-    USING (user_email = auth.email());
+    USING (user_id = auth.id());
 
 CREATE OR REPLACE VIEW public.available_credits AS
 SELECT 
-    user_email,
+    user_id,
     SUM(amount - used_amount) as total_available_credits,
     MIN(expires_at) as next_expiration
 FROM public.credit_drops
 WHERE 
     now() < expires_at
     AND used_amount < amount
-GROUP BY user_email;
+GROUP BY user_id;
 
-CREATE OR REPLACE FUNCTION public.get_total_available_credits(p_user_email text)
+CREATE OR REPLACE FUNCTION public.get_total_available_credits(p_user_id uuid)
 RETURNS integer AS $$
 BEGIN
     RETURN COALESCE(
         (SELECT SUM(amount - used_amount)
          FROM public.credit_drops
-         WHERE user_email = p_user_email
+         WHERE user_id = p_user_id
          AND now() < expires_at
          AND used_amount < amount),
         0
@@ -42,21 +42,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- NOTE: hard-coded expiration interval
 CREATE OR REPLACE FUNCTION public.admin_add_credit_drop(
-    p_user_email text,
+    p_user_id uuid,
     p_amount integer,
-    p_expires_after interval DEFAULT interval '30 days'
+    p_expires_after interval DEFAULT interval '1 month'
 )
 RETURNS uuid AS $$
 DECLARE
     v_drop_id uuid;
 BEGIN
     INSERT INTO public.credit_drops (
-        user_email,
+        user_id,
         amount,
         expires_at
     ) VALUES (
-        p_user_email,
+        p_user_id,
         p_amount,
         now() + p_expires_after
     )
@@ -68,7 +69,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 CREATE OR REPLACE FUNCTION public.consume_credits(
-    p_user_email text,
+    p_user_id uuid,
     p_amount integer
 )
 RETURNS boolean AS $$
@@ -77,8 +78,7 @@ DECLARE
     v_drop record;
     v_available integer;
 BEGIN
-    -- Quick check if user has enough total credits
-    IF public.get_total_available_credits(p_user_email) < p_amount THEN
+    IF public.get_total_available_credits(p_user_id) < p_amount THEN
         RETURN false;
     END IF;
 
@@ -86,7 +86,7 @@ BEGIN
     FOR v_drop IN 
         SELECT id, amount, used_amount
         FROM public.credit_drops
-        WHERE user_email = p_user_email
+        WHERE user_id = p_user_id
         AND now() < expires_at
         AND used_amount < amount
         ORDER BY expires_at ASC
@@ -117,7 +117,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 CREATE OR REPLACE FUNCTION public.check_sufficient_credits(
-    p_user_email text,
+    p_user_id uuid,
     p_required_credits integer
 )
 RETURNS boolean AS $$
@@ -126,12 +126,12 @@ BEGIN
         RETURN true;
     END IF;
     
-    RETURN public.get_total_available_credits(p_user_email) >= p_required_credits;
+    RETURN public.get_total_available_credits(p_user_id) >= p_required_credits;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Optional: Function to get detailed credit information for a user
-CREATE OR REPLACE FUNCTION public.get_credit_details(p_user_email text)
+CREATE OR REPLACE FUNCTION public.get_credit_details(p_user_id uuid)
 RETURNS TABLE (
     drop_id uuid,
     available_amount integer,
@@ -146,14 +146,14 @@ BEGIN
         cd.expires_at,
         now() >= cd.expires_at as is_expired
     FROM public.credit_drops cd
-    WHERE user_email = p_user_email
+    WHERE user_id = p_user_id
     AND used_amount < amount
     ORDER BY expires_at ASC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.refund_credits(
-    p_user_email text,
+    p_user_id uuid,
     p_amount integer,
     p_drop_id uuid  -- Specific drop to refund to, if known
 )
@@ -164,7 +164,7 @@ BEGIN
         UPDATE public.credit_drops
         SET used_amount = used_amount - p_amount
         WHERE id = p_drop_id
-        AND user_email = p_user_email
+        AND user_id = p_user_id
         AND used_amount >= p_amount;
         
         RETURN FOUND;
@@ -175,7 +175,7 @@ BEGIN
         WHERE id = (
             SELECT id
             FROM public.credit_drops
-            WHERE user_email = p_user_email
+            WHERE user_id = p_user_id
             AND used_amount >= p_amount
             AND expires_at > now()
             ORDER BY expires_at DESC
@@ -258,6 +258,7 @@ create table public.hello_triggers (
 alter table public.gpt_hellos enable row level security;
 alter table public.hello_triggers enable row level security;
 
+-- TODO: think about hello_triggers
 create policy "Users can only trigger hellos as themselves"
   on public.hello_triggers for insert
   to authenticated
@@ -283,30 +284,6 @@ create trigger on_hello_trigger_created
   execute procedure public.handle_new_hello_trigger();
 
 
-  -- Test: will be a insufficient credits situation
--- insert into public.hello_triggers (requester_name) 
--- values ('snoopy@gmail.com')  -- note that we're not hitting the auth.users table yet.
--- returning *;
--- 
--- SELECT * FROM auth.users;  -- no snoopy
--- SELECT * FROM public.hello_triggers;
--- 
--- -- Create Credit Drops
--- SELECT public.admin_add_credit_drop('snoopy@gmail.com', 3);
--- SELECT public.admin_add_credit_drop('snoopy@gmail.com', 10, interval '12 days');
--- 
--- -- Check available credits from the view
--- SELECT * FROM public.credit_drops WHERE user_email = 'snoopy@gmail.com';
--- SELECT * FROM public.available_credits WHERE user_email = 'snoopy@gmail.com';
--- 
--- -- Now try the insert again
--- insert into public.hello_triggers (requester_name) 
--- values ('snoopy@gmail.com')
--- returning *;
--- 
--- SELECT * FROM public.gpt_hellos;
--- 
--- 
 -- -- Cleanup script to remove everything created
 -- 
 -- -- First remove trigger
@@ -317,7 +294,7 @@ create trigger on_hello_trigger_created
 -- 
 -- -- Drop functions
 -- DROP FUNCTION IF EXISTS public.get_total_available_credits(text);
--- DROP FUNCTION IF EXISTS public.admin_add_credit_drop(text, integer, interval);
+-- DROP FUNCTION IF EXISTS public.admin_add_credit_drop(uuid, integer, interval);
 -- DROP FUNCTION IF EXISTS public.consume_credits(text, integer);
 -- DROP FUNCTION IF EXISTS public.check_sufficient_credits(text, integer);
 -- DROP FUNCTION IF EXISTS public.get_credit_details(text);
