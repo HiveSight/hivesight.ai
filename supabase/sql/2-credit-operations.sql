@@ -1,4 +1,5 @@
 -- We have to use the public schema at least for the tables that the Edge function will access
+-- TODO: put everything related to hello_triggers demo logic in its own file
 
 CREATE TABLE public.credit_drops (
     drop_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -15,7 +16,7 @@ ALTER TABLE public.credit_drops ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own credit drops"
     ON public.credit_drops FOR SELECT
     TO authenticated
-    USING (user_id = auth.id());
+    USING (user_id = auth.uid());
 
 CREATE OR REPLACE VIEW public.available_credits AS
 SELECT 
@@ -42,7 +43,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- NOTE: hard-coded expiration interval
+-- NOTE: hard-coded expiration interval of 1 month
 CREATE OR REPLACE FUNCTION public.admin_add_credit_drop(
     p_user_id uuid,
     p_amount integer,
@@ -61,7 +62,7 @@ BEGIN
         p_amount,
         now() + p_expires_after
     )
-    RETURNING id INTO v_drop_id;
+    RETURNING drop_id INTO v_drop_id;
     
     RETURN v_drop_id;
 END;
@@ -187,121 +188,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
--- Remainder of this file is a demo of an OpenAI function that does check credits
-
-CREATE OR REPLACE FUNCTION public.handle_new_hello_trigger()
-RETURNS trigger AS $$
-DECLARE
-    service_role_key TEXT;
-    pgnet_id INTEGER;
-    http_status INTEGER;
-BEGIN
-    IF NOT public.check_sufficient_credits(NEW.requester_name, 1) THEN
-        UPDATE public.hello_triggers SET status = 'insufficient credits' WHERE id = NEW.id;
-        RETURN NEW;
-    END IF;
-
-    IF NOT public.consume_credits(NEW.requester_name, 1) THEN
-        UPDATE public.hello_triggers SET status = 'insufficient credits' WHERE id = NEW.id;
-        RETURN NEW;
-    END IF;
-
-    UPDATE public.hello_triggers SET status = 'processing' WHERE id = NEW.id;
-
-    SELECT decrypted_secret
-    INTO service_role_key
-    FROM vault.decrypted_secrets
-    WHERE name = 'SUPABASE_SERVICE_ROLE_KEY';
-
-    SELECT INTO pgnet_id net.http_post(
-        url := 'https://ueguuautcrdolqpyyrjw.supabase.co/functions/v1/hello-gpt'::text,
-        headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || service_role_key
-        ), 
-        body := jsonb_build_object(
-            'requester_name', NEW.requester_name
-        )
-    );
-
-    SELECT status_code
-    INTO http_status
-    FROM net._http_response
-    WHERE id = pgnet_id;
-
-    IF http_status != 200 THEN
-        PERFORM public.refund_credits(NEW.requester_name, 1, NULL);
-        UPDATE public.hello_triggers SET status = 'error: HTTP status ' || http_status WHERE id = NEW.id;
-        RETURN NEW;
-    END IF;
-
-    RETURN NEW;
-
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-
-create table public.gpt_hellos (
-  id uuid default uuid_generate_v4() primary key,
-  message text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
-create table public.hello_triggers (
-    id uuid default uuid_generate_v4() primary key,
-    requester_name text not null,
-    status text default 'pending'::text,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
-alter table public.gpt_hellos enable row level security;
-alter table public.hello_triggers enable row level security;
-
--- TODO: think about hello_triggers
-create policy "Users can only trigger hellos as themselves"
-  on public.hello_triggers for insert
-  to authenticated
-  with check (requester_name = auth.email());
-
-CREATE POLICY "Users can view their own triggers"
-  ON public.hello_triggers FOR SELECT
-  TO authenticated
-  USING (requester_name = auth.email());
-
-CREATE POLICY "Users can view their own messages"
-  ON public.gpt_hellos FOR SELECT
-  TO authenticated
-  USING (id IN (
-    SELECT id FROM public.hello_triggers 
-    WHERE requester_name = auth.email()
-  ));
-
--- Triggers are attached to the table and don't need a schema
-create trigger on_hello_trigger_created
-  after insert on public.hello_triggers
-  for each row
-  execute procedure public.handle_new_hello_trigger();
-
-
 -- -- Cleanup script to remove everything created
--- 
--- -- First remove trigger
--- DROP TRIGGER IF EXISTS on_hello_trigger_created ON public.hello_triggers;
--- 
--- -- Drop view
 -- DROP VIEW IF EXISTS public.available_credits;
--- 
--- -- Drop functions
--- DROP FUNCTION IF EXISTS public.get_total_available_credits(text);
+-- DROP FUNCTION IF EXISTS public.get_total_available_credits(uuid);
 -- DROP FUNCTION IF EXISTS public.admin_add_credit_drop(uuid, integer, interval);
--- DROP FUNCTION IF EXISTS public.consume_credits(text, integer);
--- DROP FUNCTION IF EXISTS public.check_sufficient_credits(text, integer);
--- DROP FUNCTION IF EXISTS public.get_credit_details(text);
--- DROP FUNCTION IF EXISTS public.refund_credits(text, integer, uuid);
--- DROP FUNCTION IF EXISTS public.handle_new_hello_trigger();
--- 
--- -- Drop tables (policies will be dropped automatically)
+-- DROP FUNCTION IF EXISTS public.consume_credits(uuid, integer);
+-- DROP FUNCTION IF EXISTS public.check_sufficient_credits(uuid, integer);
+-- DROP FUNCTION IF EXISTS public.get_credit_details(uuid);
+-- DROP FUNCTION IF EXISTS public.refund_credits(uuid, integer, uuid);
 -- DROP TABLE IF EXISTS public.credit_drops CASCADE;
--- DROP TABLE IF EXISTS public.gpt_hellos CASCADE;
--- DROP TABLE IF EXISTS public.hello_triggers CASCADE;
