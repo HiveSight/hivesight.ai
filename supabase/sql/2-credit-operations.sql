@@ -85,7 +85,7 @@ BEGIN
 
     -- Lock the relevant credit drops to prevent concurrent access
     FOR v_drop IN 
-        SELECT id, amount, used_amount
+        SELECT drop_id, amount, used_amount
         FROM public.credit_drops
         WHERE user_id = p_user_id
         AND now() < expires_at
@@ -100,13 +100,13 @@ BEGIN
             -- This drop has enough to cover remaining amount
             UPDATE public.credit_drops 
             SET used_amount = used_amount + v_remaining
-            WHERE id = v_drop.id;
+            WHERE drop_id = v_drop.drop_id;
             RETURN true;
         ELSE
             -- Use all available credits from this drop and continue to next
             UPDATE public.credit_drops 
             SET used_amount = amount
-            WHERE id = v_drop.id;
+            WHERE drop_id = v_drop.drop_id;
             
             v_remaining := v_remaining - v_available;
         END IF;
@@ -142,7 +142,7 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        id,
+        drop_id,
         amount - used_amount as available_amount,
         cd.expires_at,
         now() >= cd.expires_at as is_expired
@@ -164,7 +164,7 @@ BEGIN
         -- Refund to specific drop
         UPDATE public.credit_drops
         SET used_amount = used_amount - p_amount
-        WHERE id = p_drop_id
+        WHERE drop_id = p_drop_id
         AND user_id = p_user_id
         AND used_amount >= p_amount;
         
@@ -173,8 +173,8 @@ BEGIN
         -- Refund to most recently used drop that isn't expired
         UPDATE public.credit_drops
         SET used_amount = used_amount - p_amount
-        WHERE id = (
-            SELECT id
+        WHERE drop_id = (
+            SELECT drop_id
             FROM public.credit_drops
             WHERE user_id = p_user_id
             AND used_amount >= p_amount

@@ -68,7 +68,8 @@ BEGIN
             'Authorization', 'Bearer ' || service_role_key
         ), 
         body := jsonb_build_object(
-            'requester_name', NEW.say_hello_to
+            'requester_id', NEW.requester_id,
+            'say_hello_to', NEW.say_hello_to
         )
     );
 
@@ -79,9 +80,11 @@ BEGIN
 
     IF http_status != 200 THEN
         PERFORM public.refund_credits(NEW.requester_id, 1, NULL);
-        UPDATE public.hello_triggers SET status = 'error: HTTP status ' || http_status WHERE id = NEW.id;
+        UPDATE public.hello_triggers SET status = 'error: HTTP status ' || http_status WHERE hello_trigger_id = NEW.hello_trigger_id;
         RETURN NEW;
     END IF;
+
+    UPDATE public.hello_triggers SET status = 'completed' WHERE hello_trigger_id = NEW.hello_trigger_id;
 
     RETURN NEW;
 

@@ -1,19 +1,27 @@
-
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+
+
+// Define the expected request body type
+interface RequestBody {
+  requester_id: string;  // UUID from auth.uid()
+  say_hello_to: string;
+}
+
 
 Deno.serve(async (req: Request) => {
   try {
 
-    // Get the requester_name from the request body
-    const { requester_name } = await req.json()
+    const { requester_id, say_hello_to } = await req.json() as RequestBody // compile-time assertion
 
-    // Create Supabase client
+    if (!requester_id) {  // run-time validation
+      throw new Error('requester_id is required')
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Query GPT-3.5
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -24,7 +32,7 @@ Deno.serve(async (req: Request) => {
         model: 'gpt-3.5-turbo',
         messages: [{ 
           role: 'user', 
-          content: `Say hello to ${requester_name || 'the world'} in a creative way!` 
+          content: `Say hello to ${say_hello_to || 'the world'} in a creative way!` 
         }],
         temperature: 0.7,
         max_tokens: 100,
@@ -39,10 +47,10 @@ Deno.serve(async (req: Request) => {
     const data = await response.json()
     const message = data.choices[0].message.content
 
-    // Store in database
     const { data: storedResponse, error: dbError } = await supabaseClient
       .from('gpt_hellos')
       .insert({
+        requester_id,
         message,
         created_at: new Date().toISOString(),
       })
@@ -55,7 +63,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ 
-        id: storedResponse.id,
+        hello_id: storedResponse.hello_id,
         message,
         stored: true 
       }),
