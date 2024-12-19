@@ -4,7 +4,7 @@ import { Typography, Paper } from '@mui/material';
 /**
  * Since summarization previously relied on OpenAI calls client-side,
  * and we've now moved all logic server-side, we either:
- * - Implement a second gpt_queries call for summarization, or
+ * - Implement a second llm_queries call for summarization, or
  * - Display a summary if it's included in the main responses.
 
  * For simplicity, we'll just display a note that summarization 
@@ -27,7 +27,7 @@ const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses }) => {
       <Typography variant="h6" gutterBottom>Summary</Typography>
       <Typography>
         The responses have been collected server-side. In a full implementation,
-        you could trigger another gpt_query for summarization and once completed,
+        you could trigger another llm_query for summarization and once completed,
         fetch and display that summary here. For now, consider the responses 
         displayed below for insights.
       </Typography>

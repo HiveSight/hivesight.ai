@@ -25,8 +25,8 @@ export const handleSignOut = async () => {
 };
 
 /**
- * Insert a record into gpt_queries.
- * Then poll for results in gpt_responses once status='completed'.
+ * Insert a record into llm_queries.
+ * Then poll for results in llm_responses once status='completed'.
  */
 export const handleSubmit = async ({
   question,
@@ -51,7 +51,7 @@ export const handleSubmit = async ({
   setError(null);
 
   const { data: inserted, error } = await supabase
-    .from('gpt_queries')
+    .from('llm_queries')
     .insert({
       requester_id: userId,
       prompt: question,
@@ -66,7 +66,7 @@ export const handleSubmit = async ({
     .single();
 
   if (error || !inserted) {
-    console.error('Error inserting gpt_query:', error);
+    console.error('Error inserting llm_query:', error);
     setError('Failed to submit query.');
     setLoading(false);
     return;
@@ -81,13 +81,13 @@ export const handleSubmit = async ({
   const interval = setInterval(async () => {
     attempts++;
     const { data: qData, error: qError } = await supabase
-      .from('gpt_queries')
+      .from('llm_queries')
       .select('status, query_id')
       .eq('query_id', queryId)
       .single();
 
     if (qError || !qData) {
-      console.error('Error fetching gpt_query:', qError);
+      console.error('Error fetching llm_query:', qError);
       clearInterval(interval);
       setError('Error checking query status.');
       setLoading(false);
@@ -96,7 +96,7 @@ export const handleSubmit = async ({
 
     if (qData.status === 'completed') {
       const { data: rData, error: rError } = await supabase
-        .from('gpt_responses')
+        .from('llm_responses')
         .select('question, responses')
         .eq('query_id', queryId)
         .single();
@@ -105,7 +105,7 @@ export const handleSubmit = async ({
       setLoading(false);
 
       if (rError || !rData) {
-        console.error('Error fetching gpt_responses:', rError);
+        console.error('Error fetching llm_responses:', rError);
         setError('Failed to fetch results.');
         return;
       }

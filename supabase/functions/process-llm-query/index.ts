@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
     }];
 
     const { data: responseInsert, error: insertError } = await supabaseClient
-      .from('gpt_responses')
+      .from('llm_responses')
       .insert({
         query_id: query_id,
         question: prompt,
@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { error: updateError } = await supabaseClient
-      .from('gpt_queries')
+      .from('llm_queries')
       .update({ status: 'completed' })
       .eq('query_id', query_id);
 
@@ -79,7 +79,7 @@ Deno.serve(async (req: Request) => {
     });
 
   } catch (error) {
-    console.error('Error in process-gpt-query:', error);
+    console.error('Error in process-llm-query:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 });
