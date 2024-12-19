@@ -21,18 +21,35 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // TODO: Implement logic to query OpenAI, produce responses, and store them below.
-    // For now, we'll mock responses with a placeholder.
+    // TODO: Implement actual OpenAI call here:
+    // Example:
+    // const openaiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
+    // const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'Authorization': `Bearer ${openaiKey}`,
+    //   },
+    //   body: JSON.stringify({
+    //     model: model, // or map model if needed
+    //     messages: [{ role: 'user', content: prompt }],
+    //     temperature: 1.0,
+    //     max_tokens: 500,
+    //   })
+    // });
+    // const data = await openaiResponse.json();
+    // Parse data to create responses array
+
+    // Mocked responses for now:
     const responses = [{
       perspective,
       age: 30,
       income: 50000,
       state: 'General',
-      open_ended: "Sample response",
+      open_ended: "Mocked response from OpenAI",
       likert: 4
     }];
 
-    // Insert responses
     const { data: responseInsert, error: insertError } = await supabaseClient
       .from('gpt_responses')
       .insert({
@@ -47,7 +64,6 @@ Deno.serve(async (req: Request) => {
       throw new Error(`DB Insert error: ${insertError.message}`);
     }
 
-    // Update query status
     const { error: updateError } = await supabaseClient
       .from('gpt_queries')
       .update({ status: 'completed' })

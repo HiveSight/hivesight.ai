@@ -1,5 +1,5 @@
 -- Create gpt_queries table
-CREATE TABLE public.gpt_queries (
+CREATE TABLE IF NOT EXISTS public.gpt_queries (
     query_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     requester_id uuid NOT NULL,
     prompt text NOT NULL,
@@ -27,7 +27,7 @@ WITH CHECK (requester_id = auth.uid());
 
 
 -- Create gpt_responses table
-CREATE TABLE public.gpt_responses (
+CREATE TABLE IF NOT EXISTS public.gpt_responses (
     response_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     query_id uuid NOT NULL REFERENCES public.gpt_queries(query_id),
     question text NOT NULL,
