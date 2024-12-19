@@ -1,50 +1,55 @@
-# React + TypeScript + Vite
+# Hivesight 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Currently, two official plugins are available:
+## Supabase
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+When a new user signs in to Hivesight via Google, a record is dropped into auth.users automatically,
+and that triggers:
 
-## Expanding the ESLint configuration
+1. The creation of a Stripe customer id (via Supabase edge function)
+2. Placement of the user into the "free" tier
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+If the user purchases a basic or premium recurring product, then Stripe itself calls the Supabase
+edge function to update the tier.
 
-- Configure the top-level `parserOptions` property like this:
+A cron job is running every minute to see if credits need to be dropped based on the user tier and schedule.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+An easy way to test the flow is to create users via the Supabase Authentication tab ("Add User" button)
+which should trigger the cascade of events.
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+For testing the app itself, it will be helpful to have test gmail ids, or perhaps unauthenticate our real
+gmails and reauthenticate.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+### sql
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+Test queries:
+
+```{sql}
+-- To check on Authorization
+SELECT * FROM auth.users;
+
+-- To ensure a Stripe Customer Id was created
+SELECT * FROM user_stripe_mapping;
+
+-- To see what Tier the user is in
+SELECT * FROM public.user_tiers;
+
+-- To check on the credit drops
+SELECT * FROM credit_drops;
+
+-- To check on the cron jobs
+SELECT * FROM cron.job_run_details ORDER by start_time desc;
+
+-- Look at the available credits view
+SELECT * FROM available_credits;
+
+-- Trigger an LLM Say Hello message
+INSERT INTO public.hello_triggers (requester_id, say_hello_to)
+VALUES ('598fcc9d-3bf7-4bce-8a77-267970dfa385', 'Ronald McDonald');
+
+-- Make sure the LLM job completed
+SELECT * FROM hello_triggers;
+
+-- Look at the message
+SELECT * FROM gpt_hellos;
 ```
