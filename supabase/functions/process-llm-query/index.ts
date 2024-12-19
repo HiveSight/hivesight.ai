@@ -14,42 +14,66 @@ interface RequestBody {
 
 Deno.serve(async (req: Request) => {
   try {
-    const { query_id, requester_id, prompt, model, response_types, hive_size, perspective, age_range, income_range } = await req.json() as RequestBody;
+    const {
+      query_id,
+      requester_id,
+      prompt,
+      model,
+      response_types,
+      hive_size,
+      perspective,
+      age_range,
+      income_range
+    } = await req.json() as RequestBody;
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // TODO: Implement actual OpenAI call here:
-    // Example:
-    // const openaiKey = Deno.env.get('OPENAI_API_KEY') ?? '';
-    // const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${openaiKey}`,
-    //   },
-    //   body: JSON.stringify({
-    //     model: model, // or map model if needed
-    //     messages: [{ role: 'user', content: prompt }],
-    //     temperature: 1.0,
-    //     max_tokens: 500,
-    //   })
-    // });
-    // const data = await openaiResponse.json();
-    // Parse data to create responses array
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      throw new Error('OPENAI_API_KEY not set. Please run `supabase secrets set OPENAI_API_KEY=<your-key>`.');
+    }
 
-    // Mocked responses for now:
+    // Call OpenAI
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: model, // Ensure this matches a supported OpenAI model like "gpt-3.5-turbo" or "gpt-4"
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 1.0,
+        max_tokens: 500,
+      })
+    });
+
+    if (!openaiResponse.ok) {
+      const errorData = await openaiResponse.json();
+      throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await openaiResponse.json();
+
+    // Extract the response content. Adjust if you need multiple responses.
+    const responseContent = data.choices?.[0]?.message?.content?.trim() || 'No response';
+
+    // Here we create a simple response object. For multiple personas or complex responses,
+    // you might need logic to simulate multiple responses or parse the single response into multiple entries.
+    // Currently, we just return one response object. Adjust as needed.
     const responses = [{
       perspective,
-      age: 30,
-      income: 50000,
-      state: 'General',
-      open_ended: "Mocked response from OpenAI",
-      likert: 4
+      age: 30,          // Mocked persona data if needed
+      income: 50000,     // Mocked persona data if needed
+      state: 'General',  // Mocked persona data if needed
+      open_ended: responseContent,
+      // If you want to parse a likert response, do so here. For now, just omit if not needed.
     }];
 
+    // Insert into llm_responses
     const { data: responseInsert, error: insertError } = await supabaseClient
       .from('llm_responses')
       .insert({
@@ -64,6 +88,7 @@ Deno.serve(async (req: Request) => {
       throw new Error(`DB Insert error: ${insertError.message}`);
     }
 
+    // Update llm_queries status to 'completed'
     const { error: updateError } = await supabaseClient
       .from('llm_queries')
       .update({ status: 'completed' })
@@ -80,6 +105,6 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('Error in process-llm-query:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500 });
   }
 });
