@@ -1,4 +1,10 @@
 -- Create llm_queries table
+-- Define the Supabase Project ID as a variable
+DO $$
+BEGIN
+    PERFORM set_config('supabase.project_id', 'ueguuautcrdolqpyyrjw', false);
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.llm_queries (
     query_id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     requester_id uuid NOT NULL,
@@ -54,6 +60,7 @@ DECLARE
     pgnet_id INTEGER;
     http_status INTEGER;
     required_credits integer := 1; -- Adjust credit cost as needed
+    supabase_url TEXT := 'https://' || current_setting('supabase.project_id') || '.supabase.co';
 BEGIN
     -- Check credits
     IF NOT public.check_sufficient_credits(NEW.requester_id, required_credits) THEN
@@ -75,7 +82,7 @@ BEGIN
     WHERE name = 'SUPABASE_SERVICE_ROLE_KEY';
 
     SELECT INTO pgnet_id net.http_post(
-        url := 'https://<your-supabase-project>.supabase.co/functions/v1/process-llm-query'::text,
+        url := supabase_url || '/functions/v1/process-llm-query',
         headers := jsonb_build_object(
             'Content-Type', 'application/json',
             'Authorization', 'Bearer ' || service_role_key
