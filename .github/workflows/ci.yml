@@ -39,28 +39,8 @@ jobs:
       - name: Start Supabase Database
         run: supabase db start
 
-      # Wait for Supabase to initialize
-      - name: Wait for Supabase
-        run: |
-          timeout=60
-          while ! nc -z localhost 54322; do
-            timeout=$((timeout - 1))
-            if [ $timeout -eq 0 ]; then
-              echo "Supabase services failed to start in time."
-              exit 1
-            fi
-            sleep 1
-          done
-
-      # Apply database migrations
-      - name: Migrate database
-        run: supabase --config ./supabase/config.toml db push
-
-      # Seed the database with test data
-      - name: Seed database with test data
-        run: |
-          psql "postgres://postgres:postgres@localhost:54322/postgres" \
-            -f ./supabase/tests/test_data.sql
+      - name: Run database tests
+        run: supabase test db
 
       #
       # -------------------------------------------
