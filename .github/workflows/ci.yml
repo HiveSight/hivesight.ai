@@ -34,6 +34,11 @@ jobs:
           sudo mv supabase /usr/local/bin/supabase
           supabase --version
 
+      - name: Start Docker service
+        run: |
+          sudo service docker start
+          docker info
+
       - name: Start Supabase
         run: supabase start &
         # This starts Postgres, GoTrue, etc. in Docker containers in the background.
@@ -49,7 +54,7 @@ jobs:
       # -----------------------------
       #
       - name: Migrate database
-        run: supabase db push
+        run: supabase --config ./supabase/config.toml db push
         # This applies everything in supabase/migrations/* to the local DB.
 
       - name: Seed database with test data
