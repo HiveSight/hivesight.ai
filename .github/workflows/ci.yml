@@ -29,7 +29,6 @@ jobs:
       - name: Install Supabase CLI
         run: |
           wget -qO supabase.tar.gz https://github.com/supabase/cli/releases/download/v2.1.1/supabase_linux_amd64.tar.gz
-          rm -rf supabase
           tar xzf supabase.tar.gz supabase
           sudo mv supabase /usr/local/bin/supabase
           supabase --version
@@ -41,12 +40,19 @@ jobs:
 
       - name: Start Supabase
         run: supabase start &
-        # This starts Postgres, GoTrue, etc. in Docker containers in the background.
+        # Starts Postgres, GoTrue, etc., in Docker containers in the background.
 
       - name: Wait for Supabase
         run: |
-          # Wait a bit for containers to finish initializing
-          sleep 10
+          timeout=60
+          while ! nc -z localhost 54322; do
+            timeout=$((timeout - 1))
+            if [ $timeout -eq 0 ]; then
+              echo "Supabase services failed to start in time."
+              exit 1
+            fi
+            sleep 1
+          done
 
       #
       # -----------------------------
@@ -55,11 +61,9 @@ jobs:
       #
       - name: Migrate database
         run: supabase --config ./supabase/config.toml db push
-        # This applies everything in supabase/migrations/* to the local DB.
 
       - name: Seed database with test data
         run: |
-          # By default, local supabase runs Postgres on port 54322
           psql "postgres://postgres:postgres@localhost:54322/postgres" \
             -f ./supabase/tests/test_data.sql
 
@@ -79,11 +83,9 @@ jobs:
 
       #
       # -------------------------------------------
-      # 4) (Optional) Tear down Supabase
+      # 4) Tear down Supabase
       # -------------------------------------------
       #
-      # Not strictly necessary if the job ends, but
-      # you can explicitly stop the containers if you like.
       - name: Stop Supabase
         if: always()
         run: docker compose down
