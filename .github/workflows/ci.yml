@@ -2,17 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout the code
       - uses: actions/checkout@v4
 
+      # Step 2: Set up Node.js environment
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
@@ -26,23 +30,16 @@ jobs:
       # 1) Install & Start Supabase
       # -----------------------------
       #
-      - name: Install Supabase CLI
-        run: |
-          wget -qO supabase.tar.gz https://github.com/supabase/cli/releases/download/v2.1.1/supabase_linux_amd64.tar.gz
-          rm -rf supabase
-          tar xzf supabase.tar.gz supabase
-          sudo mv supabase /usr/local/bin/supabase
-          supabase --version
+      # Install Supabase CLI using GitHub Action
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
-      - name: Start Docker service
-        run: |
-          sudo service docker start
-          docker info
+      # Start Supabase Database for tests
+      - name: Start Supabase Database
+        run: supabase db start
 
-      - name: Start Supabase
-        run: supabase start &
-        # Starts Postgres, GoTrue, etc., in Docker containers in the background.
-
+      # Wait for Supabase to initialize
       - name: Wait for Supabase
         run: |
           timeout=60
@@ -55,14 +52,11 @@ jobs:
             sleep 1
           done
 
-      #
-      # -----------------------------
-      # 2) Apply migrations & seeds
-      # -----------------------------
-      #
+      # Apply database migrations
       - name: Migrate database
         run: supabase --config ./supabase/config.toml db push
 
+      # Seed the database with test data
       - name: Seed database with test data
         run: |
           psql "postgres://postgres:postgres@localhost:54322/postgres" \
@@ -70,7 +64,7 @@ jobs:
 
       #
       # -------------------------------------------
-      # 3) Run TypeScript checks, build, & tests
+      # 2) Run TypeScript checks, build, & tests
       # -------------------------------------------
       #
       - name: Run TypeScript checks
@@ -84,9 +78,9 @@ jobs:
 
       #
       # -------------------------------------------
-      # 4) Tear down Supabase
+      # 3) Tear down Supabase
       # -------------------------------------------
       #
       - name: Stop Supabase
         if: always()
-        run: docker compose down
+        run: supabase db stop
