@@ -116,9 +116,7 @@ function SimulationWizard() {
       case 3:
         return (
           results && (
-            <>
-              <ResultsDisplay responseTypes={responseTypes} results={results} />
-            </>
+            <ResultsDisplay responseTypes={responseTypes} results={results} />
           )
         );
       default:

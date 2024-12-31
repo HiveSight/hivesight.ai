@@ -38,11 +38,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="md">
-        {user ? (
-          <SimulationWizard />
-        ) : (
-          <LandingPage />
-        )}
+        {user ? <SimulationWizard /> : <LandingPage />}
       </Container>
     </ThemeProvider>
   );

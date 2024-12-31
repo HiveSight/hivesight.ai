@@ -2,17 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout the code
       - uses: actions/checkout@v4
 
+      # Step 2: Set up Node.js environment
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
@@ -21,6 +25,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      #
+      # -----------------------------
+      # 1) Install & Start Supabase
+      # -----------------------------
+      #
+      # Install Supabase CLI using GitHub Action
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Start Supabase Database for tests
+      - name: Start Supabase Database
+        run: supabase db start
+
+      - name: Run database tests
+        run: supabase test db
+
+      #
+      # -------------------------------------------
+      # 2) Run TypeScript checks, build, & tests
+      # -------------------------------------------
+      #
       - name: Run TypeScript checks
         run: npm run typecheck
 
@@ -29,3 +55,12 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      #
+      # -------------------------------------------
+      # 3) Tear down Supabase
+      # -------------------------------------------
+      #
+      - name: Stop Supabase
+        if: always()
+        run: supabase db stop
