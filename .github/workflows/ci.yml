@@ -39,12 +39,24 @@ jobs:
       - name: Start Supabase Database
         run: supabase db start
 
-      - name: Run database tests
-        run: supabase test db
+      #
+      # -----------------------------
+      # 2) Set up Deno
+      # -----------------------------
+      #
+      # Install Deno
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Check Deno version
+      - name: Verify Deno Installation
+        run: deno --version
 
       #
       # -------------------------------------------
-      # 2) Run TypeScript checks, build, & tests
+      # 3) Run TypeScript checks, build, & tests
       # -------------------------------------------
       #
       - name: Run TypeScript checks
@@ -53,12 +65,13 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Run tests
-        run: npm test
+      # Run tests using Makefile, which now includes Deno tests
+      - name: Run all tests
+        run: make test-ci
 
       #
       # -------------------------------------------
-      # 3) Tear down Supabase
+      # 4) Tear down Supabase
       # -------------------------------------------
       #
       - name: Stop Supabase

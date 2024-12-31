@@ -1,18 +1,38 @@
 import { supabase } from '../components/SupabaseClient';
-import { QueryParams, QueryResponse, ResponseWithRespondent } from '../types';
+import { 
+  QueryParams, 
+  QueryResponse, 
+  ResponseWithRespondent,
+  RawSupabaseResponse 
+} from '../types';
 
-export async function createItem(userId: string, question: string): Promise<string> {
-  const { data, error } = await supabase
-    .from('items')
-    .insert({
-      creator_id: userId,
-      item_text: question
-    })
-    .select()
-    .single();
+export interface ItemCreationResult {
+  item_id: string;
+  error?: Error;
+}
 
-  if (error) throw error;
-  return data.item_id;
+export async function createItem(userId: string, question: string): Promise<ItemCreationResult> {
+  try {
+    const { data, error } = await supabase
+      .from('items')
+      .insert({
+        creator_id: userId,
+        item_text: question
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return {
+      item_id: data.item_id
+    };
+  } catch (e) {
+    return {
+      item_id: '',
+      error: e instanceof Error ? e : new Error('Unknown error occurred')
+    };
+  }
 }
 
 export async function createUniverse(userId: string, ageRange: [number, number], incomeRange: [number, number]): Promise<string> {
@@ -86,17 +106,6 @@ export async function getQueryStatus(queryId: string): Promise<QueryResponse> {
   return data;
 }
 
-interface RawRespondent {
-  PRTAGE: number;
-  GESTFIPS: number;
-}
-
-interface RawQueryResponse {
-  response_id: string;
-  response_text: string;
-  respondent: RawRespondent | null;
-}
-
 export async function getQueryResponses(queryId: string): Promise<ResponseWithRespondent[]> {
   const { data, error } = await supabase
     .from('responses')
@@ -113,16 +122,15 @@ export async function getQueryResponses(queryId: string): Promise<ResponseWithRe
   if (error) throw error;
   if (!data) return [];
 
-  // Safely transform the data with proper type assertions
-  return data.map(row => {
-    const rawRow = row as unknown as RawQueryResponse;
-    return {
-      response_id: rawRow.response_id,
-      response_text: rawRow.response_text,
-      respondent: rawRow.respondent ? {
-        PRTAGE: rawRow.respondent.PRTAGE,
-        GESTFIPS: rawRow.respondent.GESTFIPS
-      } : null
-    };
-  });
+  console.log('Raw Supabase response:', JSON.stringify(data, null, 2));
+
+  // First cast to unknown, then to our expected type
+  return (data as unknown as RawSupabaseResponse[]).map(row => ({
+    response_id: row.response_id,
+    response_text: row.response_text,
+    respondent: row.respondent ? {
+      PRTAGE: row.respondent.PRTAGE,
+      GESTFIPS: row.respondent.GESTFIPS
+    } : null
+  }));
 }
