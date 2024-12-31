@@ -12,7 +12,50 @@ interface RequestBody {
   income_range: number[];
 }
 
-Deno.serve(async (req: Request) => {
+export function generatePrompt(prompt: string, responseTypes: string[], perspective: string) {
+  let systemPrompt = `You are helping analyze a question from different perspectives. `;
+  
+  if (perspective === 'sample_americans') {
+    systemPrompt += `Respond as a typical American with the provided demographic information. `;
+  }
+  
+  let userPrompt = `Question: "${prompt}"\n\n`;
+  
+  if (responseTypes.includes('open_ended') && responseTypes.includes('likert')) {
+    userPrompt += `Please provide:\n1. A brief open-ended response (2-3 sentences)\n2. A Likert scale rating (1-5) where:\n1=Strongly Disagree\n2=Disagree\n3=Neutral\n4=Agree\n5=Strongly Agree\n\nFormat your response as:\nResponse: [Your open-ended response]\nRating: [1-5]`;
+  } else if (responseTypes.includes('open_ended')) {
+    userPrompt += `Please provide a brief open-ended response (2-3 sentences).`;
+  } else if (responseTypes.includes('likert')) {
+    userPrompt += `Please provide a Likert scale rating (1-5) where:\n1=Strongly Disagree\n2=Disagree\n3=Neutral\n4=Agree\n5=Strongly Agree\n\nFormat your response as:\nRating: [1-5]`;
+  }
+  
+  return { systemPrompt, userPrompt };
+}
+
+export function parseResponse(content: string, responseTypes: string[]) {
+  const response: { open_ended?: string; likert?: number } = {};
+  
+  if (responseTypes.includes('open_ended')) {
+    const openEndedMatch = content.match(/Response:\s*(.+?)(?=\nRating:|$)/s);
+    if (openEndedMatch) {
+      response.open_ended = openEndedMatch[1].trim();
+    }
+  }
+  
+  if (responseTypes.includes('likert')) {
+    const likertMatch = content.match(/Rating:\s*(\d+)/);
+    if (likertMatch) {
+      const rating = parseInt(likertMatch[1]);
+      if (rating >= 1 && rating <= 5) {
+        response.likert = rating;
+      }
+    }
+  }
+  
+  return response;
+}
+
+async function handler(req: Request) {
   try {
     const {
       query_id,
@@ -33,72 +76,81 @@ Deno.serve(async (req: Request) => {
 
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiKey) {
-      throw new Error('OPENAI_API_KEY not set. Please run `supabase secrets set OPENAI_API_KEY=<your-key>`.');
+      throw new Error('OPENAI_API_KEY not set');
     }
 
-    // Call OpenAI
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: model, // Ensure this matches a supported OpenAI model like "gpt-3.5-turbo" or "gpt-4"
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 1.0,
-        max_tokens: 500,
-      })
-    });
+    console.log('Processing query:', { query_id, prompt, response_types, hive_size });
 
-    if (!openaiResponse.ok) {
-      const errorData = await openaiResponse.json();
-      throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+    // Generate prompts
+    const { systemPrompt, userPrompt } = generatePrompt(prompt, response_types, perspective);
+
+    // Generate responses
+    const responses = [];
+    for (let i = 0; i < hive_size; i++) {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',  // or gpt-3.5-turbo based on model parameter
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 1.0,
+          max_tokens: 500,
+        })
+      });
+
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.json();
+        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await openaiResponse.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      
+      if (!content) {
+        throw new Error('No response content from OpenAI');
+      }
+
+      // Parse the response
+      const parsedResponse = parseResponse(content, response_types);
+      responses.push({
+        query_id,
+        response_text: parsedResponse.open_ended || '',
+        likert_rating: parsedResponse.likert,
+        created_at: new Date().toISOString()
+      });
+
+      console.log('Generated response:', parsedResponse);
     }
 
-    const data = await openaiResponse.json();
-
-    // Extract the response content. Adjust if you need multiple responses.
-    const responseContent = data.choices?.[0]?.message?.content?.trim() || 'No response';
-
-    // Here we create a simple response object. For multiple personas or complex responses,
-    // you might need logic to simulate multiple responses or parse the single response into multiple entries.
-    // Currently, we just return one response object. Adjust as needed.
-    const responses = [{
-      perspective,
-      age: 30,          // Mocked persona data if needed
-      income: 50000,     // Mocked persona data if needed
-      state: 'General',  // Mocked persona data if needed
-      open_ended: responseContent,
-      // If you want to parse a likert response, do so here. For now, just omit if not needed.
-    }];
-
-    // Insert into llm_responses
-    const { data: responseInsert, error: insertError } = await supabaseClient
-      .from('llm_responses')
-      .insert({
-        query_id: query_id,
-        question: prompt,
-        responses: responses
-      })
-      .select()
-      .single();
+    // Insert responses into database
+    const { error: insertError } = await supabaseClient
+      .from('responses')
+      .insert(responses);
 
     if (insertError) {
-      throw new Error(`DB Insert error: ${insertError.message}`);
+      throw new Error(`Failed to insert responses: ${insertError.message}`);
     }
 
-    // Update llm_queries status to 'completed'
+    // Update query status
     const { error: updateError } = await supabaseClient
-      .from('llm_queries')
-      .update({ status: 'completed' })
+      .from('queries')
+      .update({ execution_status: 'completed' })
       .eq('query_id', query_id);
 
     if (updateError) {
-      throw new Error(`DB Update error: ${updateError.message}`);
+      throw new Error(`Failed to update query status: ${updateError.message}`);
     }
 
-    return new Response(JSON.stringify({ success: true, response_id: responseInsert.response_id }), {
+    return new Response(JSON.stringify({
+      success: true,
+      responses_count: responses.length
+    }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200
     });
@@ -107,4 +159,9 @@ Deno.serve(async (req: Request) => {
     console.error('Error in process-llm-query:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500 });
   }
-});
+}
+
+// Start the server if this is not a test environment
+if (import.meta.main) {
+  Deno.serve(handler);
+}

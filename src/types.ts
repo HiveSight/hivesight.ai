@@ -37,15 +37,6 @@ export interface HandleSubmitParams extends SimulationParams {
   setActiveStep: (step: number) => void;
 }
 
-export interface ResponseWithRespondent {
-  response_id: string;
-  response_text: string;
-  respondent: {
-    PRTAGE: number;
-    GESTFIPS: number;
-  } | null;
-}
-
 // Database types
 export interface QueryResponse {
   query_id: string;
@@ -58,4 +49,38 @@ export interface QueryParams {
   model: string;
   universeId: string | null;
   hiveSize: number;
+}
+
+// ... existing types ...
+
+// Raw Supabase response types
+export interface RawSupabaseRespondent {
+  PRTAGE: number;
+  GESTFIPS: number;
+}
+
+export interface RawSupabaseResponse {
+  response_id: string;
+  response_text: string;
+  respondent: {
+    PRTAGE: number;
+    GESTFIPS: number;
+  } | null;
+}
+
+export interface SupabaseRespondent {
+  PRTAGE: number;
+  GESTFIPS: number;
+}
+
+export interface SupabaseResponse {
+  response_id: string;
+  response_text: string;
+  respondent: SupabaseRespondent | null;
+}
+
+export interface ResponseWithRespondent {
+  response_id: string;
+  response_text: string;
+  respondent: SupabaseRespondent | null;
 }

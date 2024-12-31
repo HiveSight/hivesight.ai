@@ -1,0 +1,9 @@
+{
+    "imports": {
+      "@supabase/supabase-js": "jsr:@supabase/supabase-js@2.47.10"
+    },
+    "nodeModulesDir": "auto",
+    "tasks": {
+      "test": "deno test --allow-read --allow-env"
+    }
+  }

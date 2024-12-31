@@ -1,5 +1,10 @@
 import { supabase } from '../components/SupabaseClient';
-import { QueryParams, QueryResponse, ResponseWithRespondent } from '../types';
+import { 
+  QueryParams, 
+  QueryResponse, 
+  ResponseWithRespondent,
+  RawSupabaseResponse 
+} from '../types';
 
 export interface ItemCreationResult {
   item_id: string;
@@ -117,7 +122,10 @@ export async function getQueryResponses(queryId: string): Promise<ResponseWithRe
   if (error) throw error;
   if (!data) return [];
 
-  return data.map(row => ({
+  console.log('Raw Supabase response:', JSON.stringify(data, null, 2));
+
+  // First cast to unknown, then to our expected type
+  return (data as unknown as RawSupabaseResponse[]).map(row => ({
     response_id: row.response_id,
     response_text: row.response_text,
     respondent: row.respondent ? {

@@ -39,8 +39,8 @@ jobs:
       - name: Start Supabase Database
         run: supabase db start
 
-      - name: Run database tests
-        run: supabase test db
+      - name: Run all tests
+        run: make test-ci
 
       #
       # -------------------------------------------
