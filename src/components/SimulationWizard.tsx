@@ -1,23 +1,25 @@
 import { useEffect } from 'react';
 import {
   Typography,
-  Button,
   Box,
   CircularProgress,
   Stepper,
   Step,
   StepLabel,
   Container,
+  Button
 } from '@mui/material';
-import QuestionInput from './QuestionInput';
-import ConfigureSimulation from './ConfigureSimulation';
-import ReviewSubmit from './ReviewSubmit';
-import ResultsDisplay from './ResultsDisplay';
 import { loadPerspectives } from '../services/perspectivesData';
 import { initializeEncoder } from '../utils/tokenEstimation';
 import AppLayout from './AppLayout';
 import { useSimulationState } from '../hooks/useSimulationState';
 import { handleSignOut, handleSubmit } from '../utils/simulationHandlers';
+import { createItem } from '../services/database';
+import { getCurrentUser } from '../services/auth';
+import { WizardSteps } from './WizardSteps';
+import { WizardNavigation } from './WizardNavigation';
+
+const STEPS = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
 
 function SimulationWizard() {
   const {
@@ -51,7 +53,21 @@ function SimulationWizard() {
   }, []);
 
   const handleNext = async () => {
-    if (activeStep === 2) {
+    if (activeStep === 0) {
+      // Create item when moving from question step
+      setLoading(true);
+      const user = await getCurrentUser();
+      const { error } = await createItem(user.id, question);
+      
+      if (error) {
+        setError('Failed to save question. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(false);
+      setActiveStep((prevActiveStep: number) => prevActiveStep + 1);
+    } else if (activeStep === 2) {
       await handleSubmit({
         question,
         responseTypes,
@@ -74,56 +90,6 @@ function SimulationWizard() {
     setActiveStep((prevActiveStep: number) => prevActiveStep - 1);
   };
 
-  const steps = ['Set Question', 'Configure Simulation', 'Review & Submit', 'View Results'];
-
-  const getStepContent = (step: number) => {
-    switch (step) {
-      case 0:
-        return <QuestionInput question={question} setQuestion={setQuestion} />;
-      case 1:
-        return (
-          <ConfigureSimulation
-            responseTypes={responseTypes}
-            setResponseTypes={setResponseTypes}
-            hiveSize={hiveSize}
-            setHiveSize={setHiveSize}
-            incomeRange={incomeRange}
-            setIncomeRange={setIncomeRange}
-            model={model}
-            setModel={setModel}
-            ageRange={ageRange}
-            setAgeRange={setAgeRange}
-            perspective={perspective}
-            setPerspective={setPerspective}
-          />
-        );
-      case 2:
-        return (
-          <ReviewSubmit
-            question={question}
-            responseTypes={responseTypes}
-            hiveSize={hiveSize}
-            perspective={perspective}
-            ageRange={ageRange}
-            model={model}
-            costEstimation={{
-              inputTokens: 0,
-              outputTokens: 0,
-              totalCost: 0
-            }}
-          />
-        );
-      case 3:
-        return (
-          results && (
-            <ResultsDisplay responseTypes={responseTypes} results={results} />
-          )
-        );
-      default:
-        return 'Unknown step';
-    }
-  };
-
   return (
     <AppLayout>
       <Box
@@ -139,41 +105,54 @@ function SimulationWizard() {
       >
         <Container maxWidth="md" sx={{ mt: 8, mb: 4 }}>
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
-            {steps.map((label) => (
+            {STEPS.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
               </Step>
             ))}
           </Stepper>
-          <Box sx={{ mt: 4, mb: 4 }}>{getStepContent(activeStep)}</Box>
+
+          <Box sx={{ mt: 4, mb: 4 }}>
+            <WizardSteps
+              activeStep={activeStep}
+              question={question}
+              setQuestion={setQuestion}
+              responseTypes={responseTypes}
+              setResponseTypes={setResponseTypes}
+              hiveSize={hiveSize}
+              setHiveSize={setHiveSize}
+              perspective={perspective}
+              setPerspective={setPerspective}
+              ageRange={ageRange}
+              setAgeRange={setAgeRange}
+              incomeRange={incomeRange}
+              setIncomeRange={setIncomeRange}
+              model={model}
+              setModel={setModel}
+              results={results}
+            />
+          </Box>
+
           {error && (
             <Typography color="error" align="center">
               {error}
             </Typography>
           )}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Button
-              color="inherit"
-              disabled={activeStep === 0 || loading}
-              onClick={handleBack}
-              sx={{ mr: 1 }}
-            >
-              Back
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleNext}
-              disabled={loading}
-            >
-              {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-            </Button>
-          </Box>
+
+          <WizardNavigation
+            activeStep={activeStep}
+            loading={loading}
+            onBack={handleBack}
+            onNext={handleNext}
+            totalSteps={STEPS.length}
+          />
+
           {loading && (
             <Box display="flex" justifyContent="center" my={4}>
               <CircularProgress />
             </Box>
           )}
+
           <Button 
             variant="contained" 
             color="primary" 

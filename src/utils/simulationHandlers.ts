@@ -1,12 +1,6 @@
 import { HandleSubmitParams, ResponseData } from '../types';
 import { getCurrentUser } from '../services/auth';
-import { 
-  createItem, 
-  createUniverse, 
-  createQuery,
-  getQueryStatus,
-  getQueryResponses
-} from '../services/database';
+import { createItem, createUniverse, createQuery, getQueryStatus, getQueryResponses } from '../services/database';
 import { supabase } from '../components/SupabaseClient';
 
 export const handleSignOut = async () => {
@@ -41,21 +35,54 @@ export const handleSubmit = async ({
 
   try {
     const user = await getCurrentUser();
+    console.log('Attempting to create item with:', {
+      userId: user.id,
+      question: question
+    });
     
-    // Create item and universe if needed
-    const itemId = await createItem(user.id, question);
+    // Create item
+    const itemResult = await createItem(user.id, question);
+    console.log('Item creation result:', itemResult);
+
+    // Verify item was created by fetching it
+    const { data: verifyItem, error: verifyError } = await supabase
+      .from('items')
+      .select('*')
+      .eq('item_id', itemResult.item_id)
+      .single();
+    
+    console.log('Verification query result:', {
+      item: verifyItem,
+      error: verifyError
+    });
+
+    if (itemResult.error) {
+      throw itemResult.error;
+    }
+
+    // Create universe if needed
     const universeId = perspective === 'sample_americans' 
       ? await createUniverse(user.id, ageRange, incomeRange)
       : null;
 
-    // Create the query
-    const inserted = await createQuery({
+    console.log('Creating query with:', {
       userId: user.id,
-      itemId,
+      itemId: itemResult.item_id,
       model,
       universeId,
       hiveSize
     });
+
+    // Create the query using the item_id string
+    const inserted = await createQuery({
+      userId: user.id,
+      itemId: itemResult.item_id,  // Pass just the string ID
+      model,
+      universeId,
+      hiveSize
+    });
+
+    console.log('Query creation result:', inserted);
 
     const queryId = inserted.query_id;
     setActiveStep(2);
@@ -68,9 +95,11 @@ export const handleSubmit = async ({
       
       try {
         const qData = await getQueryStatus(queryId);
+        console.log(`Poll attempt ${attempts}, status:`, qData.execution_status);
 
         if (qData.execution_status === 'completed') {
           const responses = await getQueryResponses(queryId);
+          console.log('Query responses:', responses);
           
           clearInterval(interval);
           setLoading(false);
