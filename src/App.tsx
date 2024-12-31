@@ -39,7 +39,8 @@ function App() {
       <CssBaseline />
       <Container maxWidth="md">
         {user ? (
-          <SimulationWizard />
+-         <SimulationWizard />
++         <SimulationWizard userId={user.id} />
         ) : (
           <LandingPage />
         )}

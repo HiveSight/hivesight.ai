@@ -10,6 +10,7 @@ interface HandleSubmitParams {
   ageRange: [number, number];
   incomeRange: [number, number];
   model: ModelType;
+  userId: string;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setResults: (data: { question: string, responses: any[] } | null) => void;
@@ -33,6 +34,7 @@ export const handleSubmit = async ({
   ageRange,
   incomeRange,
   model,
+  userId,
   setLoading,
   setError,
   setResults,
