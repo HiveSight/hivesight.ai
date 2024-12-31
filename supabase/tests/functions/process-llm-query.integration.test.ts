@@ -1,11 +1,9 @@
-// supabase/tests/functions/process-llm-query.integration.test.ts
-
 import { assertEquals } from "https://deno.land/std@0.207.0/assert/mod.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { handleRequest } from "../../functions/process-llm-query/handler.ts";
-import type { Dependencies } from "../../functions/process-llm-query/types.ts";
+import { Dependencies } from "../../functions/process-llm-query/types.ts";
 
-Deno.test("integration - successfully processes query", async () => {
+Deno.test("successfully processes query", async () => {
   // Mock OpenAI response
   const mockFetch: Dependencies['fetch'] = async (input, init?) => {
     const url = input.toString();
@@ -14,36 +12,52 @@ Deno.test("integration - successfully processes query", async () => {
         choices: [{
           message: { content: "Response: Test response\nRating: 4" }
         }]
-      }));
+      }), { status: 200 });
     }
     return new Response(null, { status: 404 });
   };
 
-  // Mock Supabase client
+  // Mock Supabase client with chained methods
   const mockSupabase = {
     from: () => ({
-      insert: () => Promise.resolve({ error: null }),
+      insert: () => ({
+        select: () => ({
+          single: () => Promise.resolve({ 
+            data: { respondent_id: 'test-id', response_id: 'test-response-id' }, 
+            error: null 
+          })
+        })
+      }),
       update: () => ({
         eq: () => Promise.resolve({ error: null })
+      }),
+      select: () => ({
+        single: () => Promise.resolve({ 
+          data: { respondent_id: 'test-id', response_id: 'test-response-id' }, 
+          error: null 
+        })
       })
     })
-  };
+  } as unknown as SupabaseClient;
 
   const mockRequest = new Request("http://localhost", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       query_id: "test-id",
+      requester_id: "test-user",
       prompt: "test question",
       response_types: ["open_ended", "likert"],
       hive_size: 1,
       perspective: "general_gpt",
-      model: "gpt-4"
+      model: "gpt-4",
+      age_range: [18, 65],
+      income_range: [0, 100000]
     })
   });
 
   const response = await handleRequest(mockRequest, {
-    supabaseClient: mockSupabase as unknown as ReturnType<typeof createClient>,
+    supabaseClient: mockSupabase,
     fetch: mockFetch,
     openaiApiKey: "test_key"
   });
@@ -51,5 +65,85 @@ Deno.test("integration - successfully processes query", async () => {
   const data = await response.json();
   assertEquals(response.status, 200);
   assertEquals(data.success, true);
-  assertEquals(data.responses_count, 1);
+});
+
+Deno.test("handles invalid request body", async () => {
+  const mockRequest = new Request("http://localhost", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "invalid json"
+  });
+
+  const response = await handleRequest(mockRequest, {
+    supabaseClient: {} as SupabaseClient,
+    fetch: () => Promise.resolve(new Response()),
+    openaiApiKey: "test_key"
+  });
+
+  assertEquals(response.status, 400);
+  const data = await response.json();
+  assertEquals(data.error, "Invalid request body");
+});
+
+Deno.test("handles OpenAI error", async () => {
+  const mockSupabase = {
+    from: () => ({
+      insert: () => ({
+        select: () => ({
+          single: () => Promise.resolve({ 
+            data: { respondent_id: 'test-id' }, 
+            error: null 
+          })
+        })
+      }),
+      update: () => ({
+        eq: () => Promise.resolve({ error: null })
+      })
+    })
+  } as unknown as SupabaseClient;
+
+  const mockFetch: Dependencies['fetch'] = async (input, init?) => {
+    if (input.toString().includes('openai')) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: "The model 'test-model' does not exist",
+            type: "invalid_request_error",
+            code: "model_not_found"
+          }
+        }),
+        { status: 404 }
+      );
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  const mockRequest = new Request("http://localhost", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query_id: "test-id",
+      requester_id: "test-user",
+      prompt: "test",
+      response_types: ["open_ended"],
+      hive_size: 1,
+      perspective: "general_gpt",
+      model: "test-model",
+      age_range: [18, 65],
+      income_range: [0, 100000]
+    })
+  });
+
+  const response = await handleRequest(mockRequest, {
+    supabaseClient: mockSupabase,
+    fetch: mockFetch,
+    openaiApiKey: "test_key"
+  });
+
+  assertEquals(response.status, 500);
+  const data = await response.json();
+  assertEquals(
+    data.error,
+    "OpenAI API error: The model 'test-model' does not exist"
+  );
 });

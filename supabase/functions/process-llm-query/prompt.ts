@@ -1,5 +1,3 @@
-// supabase/functions/process-llm-query/prompt.ts
-
 import { GeneratedPrompts, ParsedResponse } from './types.ts';
 
 export function generatePrompt(

@@ -1,5 +1,3 @@
-// supabase/tests/functions/process-llm-query.unit.test.ts
-
 import { assertEquals } from "https://deno.land/std@0.207.0/assert/mod.ts";
 import { generatePrompt, parseResponse } from "../../functions/process-llm-query/prompt.ts";
 
@@ -65,6 +63,20 @@ Deno.test("generatePrompt - both response types", () => {
   );
 });
 
+Deno.test("generatePrompt - sample_americans perspective", () => {
+  const { systemPrompt } = generatePrompt(
+    "What is your opinion?",
+    ["open_ended"],
+    "sample_americans"
+  );
+
+  assertEquals(
+    systemPrompt.includes("typical American"),
+    true,
+    "System prompt should mention American perspective"
+  );
+});
+
 Deno.test("parseResponse - open ended", () => {
   const content = "Response: This is a test response about remote work.";
   const result = parseResponse(content, ["open_ended"]);
@@ -121,5 +133,37 @@ Deno.test("parseResponse - invalid Likert rating", () => {
     result.likert,
     undefined,
     "Should reject invalid Likert rating"
+  );
+});
+
+Deno.test("parseResponse - malformed response", () => {
+  const content = "Some random text without proper formatting";
+  const result = parseResponse(content, ["open_ended", "likert"]);
+
+  assertEquals(
+    result.open_ended,
+    undefined,
+    "Should not extract malformed open-ended response"
+  );
+  assertEquals(
+    result.likert,
+    undefined,
+    "Should not extract malformed Likert rating"
+  );
+});
+
+Deno.test("parseResponse - empty content", () => {
+  const content = "";
+  const result = parseResponse(content, ["open_ended", "likert"]);
+
+  assertEquals(
+    result.open_ended,
+    undefined,
+    "Should handle empty content for open-ended"
+  );
+  assertEquals(
+    result.likert,
+    undefined,
+    "Should handle empty content for Likert"
   );
 });

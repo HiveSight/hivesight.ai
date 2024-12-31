@@ -1,5 +1,3 @@
-// supabase/functions/process-llm-query/types.ts
-
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface RequestBody {
@@ -10,14 +8,8 @@ export interface RequestBody {
   response_types: string[];
   hive_size: number;
   perspective: string;
-  age_range: number[];
-  income_range: number[];
-}
-
-export interface Dependencies {
-  supabaseClient: SupabaseClient;
-  fetch: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
-  openaiApiKey: string;
+  age_range: [number, number];
+  income_range: [number, number];
 }
 
 export interface ParsedResponse {
@@ -28,4 +20,10 @@ export interface ParsedResponse {
 export interface GeneratedPrompts {
   systemPrompt: string;
   userPrompt: string;
+}
+
+export interface Dependencies {
+  supabaseClient: SupabaseClient;
+  fetch: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+  openaiApiKey: string;
 }
