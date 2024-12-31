@@ -26,6 +26,60 @@ export const handleSignOut = async () => {
   }
 };
 
+async function createItem(userId: string, question: string) {
+  const { data, error } = await supabase
+    .from('items')
+    .insert({
+      creator_id: userId,
+      item_text: question
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data.item_id;
+}
+
+async function createUniverse(userId: string, ageRange: [number, number], incomeRange: [number, number]) {
+  // First create the universe
+  const { data: universe, error: universeError } = await supabase
+    .from('response_universes')
+    .insert({
+      creator_id: userId,
+      name: `Universe for age ${ageRange[0]}-${ageRange[1]} and income ${incomeRange[0]}-${incomeRange[1]}`,
+      source: 'web_app',
+      description: 'Automatically created universe for query'
+    })
+    .select()
+    .single();
+
+  if (universeError) throw universeError;
+
+  // Then add the constraints
+  const constraints = [
+    {
+      universe_id: universe.universe_id,
+      variable: 'PRTAGE',
+      operator: 'BETWEEN',
+      value: `${ageRange[0]},${ageRange[1]}`
+    },
+    {
+      universe_id: universe.universe_id,
+      variable: 'INCOME',
+      operator: 'BETWEEN',
+      value: `${incomeRange[0]},${incomeRange[1]}`
+    }
+  ];
+
+  const { error: constraintsError } = await supabase
+    .from('universe_constraints')
+    .insert(constraints);
+
+  if (constraintsError) throw constraintsError;
+
+  return universe.universe_id;
+}
+
 export const handleSubmit = async ({
   question,
   responseTypes,
@@ -50,45 +104,38 @@ export const handleSubmit = async ({
   try {
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      console.error('Auth error:', userError);
+    if (userError || !user) {
       throw new Error('Authentication failed');
     }
-    if (!user) {
-      throw new Error('User not authenticated');
+
+    // Create item and universe if needed
+    const itemId = await createItem(user.id, question);
+    let universeId = null;
+    
+    if (perspective === 'sample_americans') {
+      universeId = await createUniverse(user.id, ageRange, incomeRange);
     }
 
-    // Log the data we're about to insert
     console.log('Inserting query with data:', {
       requester_id: user.id,
-      prompt: question,
+      item_id: itemId,
       model,
-      response_types: responseTypes,
-      hive_size: hiveSize,
-      perspective,
-      age_range: ageRange,
-      income_range: incomeRange
+      universe_id: universeId
     });
 
     const { data: inserted, error } = await supabase
-      .from('queries')  // Changed from llm_queries to queries
+      .from('queries')
       .insert({
+        item_id: itemId,
         requester_id: user.id,
-        item_id: null,  // Add required fields from queries table
         model,
-        temperature: 0.7,  // Add default values for required fields
-        max_tokens: 1000,  // Add default values for required fields
+        temperature: 0.7,
+        max_tokens: 1000,
         n_responses: hiveSize,
-        n_responses_per_respondent: 1,  // Default value
-        credit_cost: 1,  // Default value
-        execution_status: 'pending',
-        // Custom fields we need for our application
-        prompt: question,
-        response_types: responseTypes,
-        hive_size: hiveSize,
-        perspective,
-        age_range: ageRange,
-        income_range: incomeRange
+        n_responses_per_respondent: 1,
+        universe_id: universeId,
+        credit_cost: 1,
+        execution_status: 'pending'
       })
       .select()
       .single();
@@ -114,8 +161,8 @@ export const handleSubmit = async ({
       
       try {
         const { data: qData, error: qError } = await supabase
-          .from('queries')  // Changed from llm_queries to queries
-          .select('execution_status as status, query_id')  // Map execution_status to status
+          .from('queries')
+          .select('execution_status, query_id')
           .eq('query_id', queryId)
           .single();
 
@@ -129,10 +176,17 @@ export const handleSubmit = async ({
           throw new Error('Query not found');
         }
 
-        if (qData.status === 'completed') {
+        if (qData.execution_status === 'completed') {
           const { data: rData, error: rError } = await supabase
-            .from('responses')  // Changed from llm_responses to responses
-            .select('query_id, response_text as responses')  // Map fields to match expected format
+            .from('responses')
+            .select(`
+              response_id,
+              response_text,
+              respondents(
+                PRTAGE,
+                GESTFIPS
+              )
+            `)
             .eq('query_id', queryId);
           
           clearInterval(interval);
@@ -149,15 +203,18 @@ export const handleSubmit = async ({
           setResults({ 
             question, 
             responses: rData.map(r => ({
-              response_text: r.responses,
-              query_id: r.query_id
+              response_text: r.response_text,
+              age: r.respondents?.PRTAGE || null,
+              state: r.respondents?.GESTFIPS?.toString() || 'Unknown',
+              // Add other fields as needed
+              perspective: perspective
             }))
           });
           setLoading(false);
           setActiveStep(3);
-        } else if (qData.status === 'error' || qData.status === 'insufficient_credits') {
+        } else if (qData.execution_status === 'error') {
           clearInterval(interval);
-          throw new Error(qData.status === 'error' ? 'Error processing query' : 'Insufficient credits');
+          throw new Error('Error processing query');
         }
 
         if (attempts >= maxAttempts) {
