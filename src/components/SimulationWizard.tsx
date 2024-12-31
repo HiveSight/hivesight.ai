@@ -19,11 +19,7 @@ import AppLayout from './AppLayout';
 import { useSimulationState } from '../hooks/useSimulationState';
 import { handleSignOut, handleSubmit } from '../utils/simulationHandlers';
 
-interface SimulationWizardProps {
-  userId: string;
-}
-
-function SimulationWizard({ userId }: SimulationWizardProps) {
+function SimulationWizard() {
   const {
     activeStep,
     setActiveStep,
@@ -64,7 +60,6 @@ function SimulationWizard({ userId }: SimulationWizardProps) {
         ageRange,
         incomeRange,
         model,
-        userId,
         setLoading,
         setError,
         setResults,
@@ -121,9 +116,7 @@ function SimulationWizard({ userId }: SimulationWizardProps) {
       case 3:
         return (
           results && (
-            <>
-              <ResultsDisplay responseTypes={responseTypes} results={results} />
-            </>
+            <ResultsDisplay responseTypes={responseTypes} results={results} />
           )
         );
       default:

@@ -10,10 +10,9 @@ interface HandleSubmitParams {
   ageRange: [number, number];
   incomeRange: [number, number];
   model: ModelType;
-  userId: string;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setResults: (data: { question: string, responses: any[] } | null) => void;
+  setResults: (data: { question: string; responses: any[] } | null) => void;
   setActiveStep: (step: number) => void;
 }
 
@@ -34,7 +33,6 @@ export const handleSubmit = async ({
   ageRange,
   incomeRange,
   model,
-  userId,
   setLoading,
   setError,
   setResults,
@@ -117,7 +115,8 @@ export const handleSubmit = async ({
         throw new Error('Timed out waiting for responses');
       }
     }, 3000);
-  } catch (error) {
+  } catch (err) {
+    const error = err as Error;
     console.error('Error in handleSubmit:', error);
     setError(error.message || 'An unexpected error occurred');
     setLoading(false);

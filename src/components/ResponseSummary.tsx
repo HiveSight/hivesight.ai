@@ -6,9 +6,6 @@ import { Typography, Paper } from '@mui/material';
  * and we've now moved all logic server-side, we either:
  * - Implement a second llm_queries call for summarization, or
  * - Display a summary if it's included in the main responses.
-
- * For simplicity, we'll just display a note that summarization 
- * is now handled server-side and rely on the responses we already have.
  */
 
 interface ResponseSummaryProps {
@@ -20,8 +17,7 @@ interface ResponseSummaryProps {
   }>;
 }
 
-const ResponseSummary: React.FC<ResponseSummaryProps> = ({ responses }) => {
-  // No direct OpenAI calls here. Just show a basic summary placeholder.
+const ResponseSummary: React.FC<ResponseSummaryProps> = () => {
   return (
     <Paper elevation={2} style={{ padding: '1rem', marginTop: '1rem' }}>
       <Typography variant="h6" gutterBottom>Summary</Typography>
