@@ -1,105 +1,114 @@
 // supabase/functions/process-llm-query/handler.ts
-
-import { Dependencies, RequestBody } from './types.ts';
-import { generatePrompt, parseResponse } from './prompt.ts';
-
 export async function handleRequest(
-  req: Request,
-  dependencies: Dependencies
-): Promise<Response> {
-  try {
-    const {
-      query_id,
-      prompt,
-      response_types,
-      hive_size,
-      perspective,
-      model
-    } = await req.json() as RequestBody;
-
-    const { supabaseClient, fetch, openaiApiKey } = dependencies;
-
-    console.log('Processing query:', { query_id, prompt, response_types, hive_size });
-
-    // Generate prompts
-    const { systemPrompt, userPrompt } = generatePrompt(prompt, response_types, perspective);
-
-    // Generate responses
-    const responses = [];
-    for (let i = 0; i < hive_size; i++) {
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 1.0,
-          max_tokens: 500,
+    req: Request,
+    dependencies: Dependencies
+  ): Promise<Response> {
+    try {
+      const { supabaseClient, fetch, openaiApiKey } = dependencies;
+      const params = await validateRequestBody(req);
+      
+      // Update status to processing
+      await supabaseClient
+        .from('queries')
+        .update({ execution_status: 'processing' })
+        .eq('query_id', params.query_id);
+  
+      // Create a respondent for this perspective
+      // In a real implementation, you might want to select from existing respondents
+      const { data: respondent, error: respondentError } = await supabaseClient
+        .from('respondents')
+        .insert({
+          creator_id: params.requester_id,
+          source: 'gpt',
+          GESTFIPS: 0,  // Default value, could be randomized
+          PRTAGE: Math.floor(Math.random() * (params.age_range[1] - params.age_range[0]) + params.age_range[0])
         })
-      });
-
-      if (!openaiResponse.ok) {
-        const errorData = await openaiResponse.json();
-        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+        .select()
+        .single();
+  
+      if (respondentError) {
+        throw new Error(`Failed to create respondent: ${respondentError.message}`);
       }
+  
+      // Generate and store responses one at a time
+      for (let i = 0; i < params.hive_size; i++) {
+        const response = await generateSingleResponse(params, {
+          openaiApiKey,
+          fetch
+        });
+  
+      // First insert the base response
+      const { data: insertedResponse, error: responseError } = await supabaseClient
+        .from('responses')
+        .insert({
+            query_id: params.query_id,
+            respondent_id: respondent.respondent_id,
+            response_text: '', // Empty since we store in attributes
+            iteration: 0
+        })
+        .select()
+        .single();
 
-      const data = await openaiResponse.json();
-      const content = data.choices?.[0]?.message?.content?.trim();
+        if (responseError) {
+        throw new Error(`Failed to insert response: ${responseError.message}`);
+        }
 
-      if (!content) {
-        throw new Error('No response content from OpenAI');
+        // Insert both open-ended and likert responses as attributes
+        const attributes = [];
+        if (response.open_ended) {
+        attributes.push({
+            response_id: insertedResponse.response_id,
+            attribute: 'open_ended',
+            value: response.open_ended
+        });
+        }
+        if (response.likert !== undefined) {
+        attributes.push({
+            response_id: insertedResponse.response_id,
+            attribute: 'likert',
+            value: response.likert.toString()
+        });
+        }
+
+        if (attributes.length > 0) {
+        const { error: attributeError } = await supabaseClient
+            .from('response_attributes')
+            .insert(attributes);
+
+        if (attributeError) {
+            throw new Error(`Failed to insert response attributes: ${attributeError.message}`);
+        }
+        }
+  
+        // Small delay between requests to avoid rate limiting
+        if (i < params.hive_size - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
-
-      // Parse and collect the response
-      const parsedResponse = parseResponse(content, response_types);
-      responses.push({
-        query_id,
-        response_text: parsedResponse.open_ended || '',
-        likert_rating: parsedResponse.likert,
-        created_at: new Date().toISOString()
-      });
-
-      console.log('Generated response:', parsedResponse);
+  
+      // Mark query as completed
+      await supabaseClient
+        .from('queries')
+        .update({ execution_status: 'completed' })
+        .eq('query_id', params.query_id);
+  
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200 }
+      );
+    } catch (error) {
+      // Update query status to error
+      await supabaseClient
+        .from('queries')
+        .update({ 
+          execution_status: 'error',
+          error_message: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .eq('query_id', params.query_id);
+  
+      return new Response(
+        JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+        { status: 500 }
+      );
     }
-
-    // Insert responses into database
-    const { error: insertError } = await supabaseClient
-      .from('responses')
-      .insert(responses);
-
-    if (insertError) {
-      throw new Error(`Failed to insert responses: ${insertError.message}`);
-    }
-
-    // Update query status
-    const { error: updateError } = await supabaseClient
-      .from('queries')
-      .update({ execution_status: 'completed' })
-      .eq('query_id', query_id);
-
-    if (updateError) {
-      throw new Error(`Failed to update query status: ${updateError.message}`);
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      responses_count: responses.length
-    }), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 200
-    });
-
-  } catch (error) {
-    console.error('Error in handleRequest:', error);
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }), 
-      { status: 500 }
-    );
   }
-}

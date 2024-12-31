@@ -27,24 +27,27 @@ export function generatePrompt(
 }
 
 export function parseResponse(content: string, responseTypes: string[]): ParsedResponse {
-  const response: ParsedResponse = {};
-  
-  if (responseTypes.includes('open_ended')) {
-    const openEndedMatch = content.match(/Response:\s*(.+?)(?=\nRating:|$)/s);
-    if (openEndedMatch) {
-      response.open_ended = openEndedMatch[1].trim();
-    }
-  }
-  
-  if (responseTypes.includes('likert')) {
-    const likertMatch = content.match(/Rating:\s*(\d+)/);
-    if (likertMatch) {
-      const rating = parseInt(likertMatch[1]);
-      if (rating >= 1 && rating <= 5) {
-        response.likert = rating;
+    const response: ParsedResponse = {
+      open_ended: '',
+      likert: undefined
+    };
+    
+    if (responseTypes.includes('open_ended')) {
+      const openEndedMatch = content.match(/Response:\s*(.+?)(?=\nRating:|$)/s);
+      if (openEndedMatch) {
+        response.open_ended = openEndedMatch[1].trim();
       }
     }
+    
+    if (responseTypes.includes('likert')) {
+      const likertMatch = content.match(/Rating:\s*(\d+)/);
+      if (likertMatch) {
+        const rating = parseInt(likertMatch[1]);
+        if (rating >= 1 && rating <= 5) {
+          response.likert = rating;
+        }
+      }
+    }
+    
+    return response;
   }
-  
-  return response;
-}
