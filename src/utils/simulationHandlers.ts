@@ -1,31 +1,13 @@
+import { HandleSubmitParams, ResponseData } from '../types';
+import { getCurrentUser } from '../services/auth';
+import { 
+  createItem, 
+  createUniverse, 
+  createQuery,
+  getQueryStatus,
+  getQueryResponses
+} from '../services/database';
 import { supabase } from '../components/SupabaseClient';
-import { ModelType } from '../config';
-import { ResponseType } from '../types';
-import { PostgrestError } from '@supabase/supabase-js';
-
-interface HandleSubmitParams {
-  question: string;
-  responseTypes: ResponseType[];
-  hiveSize: number;
-  perspective: string;
-  ageRange: [number, number];
-  incomeRange: [number, number];
-  model: ModelType;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  setResults: (data: { question: string; responses: any[] } | null) => void;
-  setActiveStep: (step: number) => void;
-}
-
-// Add interface for response data
-interface ResponseWithRespondent {
-  response_id: string;
-  response_text: string;
-  respondent: {
-    PRTAGE: number;
-    GESTFIPS: number;
-  } | null;
-}
 
 export const handleSignOut = async () => {
   try {
@@ -35,58 +17,6 @@ export const handleSignOut = async () => {
     console.error('Error signing out:', error);
   }
 };
-
-async function createItem(userId: string, question: string) {
-  const { data, error } = await supabase
-    .from('items')
-    .insert({
-      creator_id: userId,
-      item_text: question
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data.item_id;
-}
-
-async function createUniverse(userId: string, ageRange: [number, number], incomeRange: [number, number]) {
-  const { data: universe, error: universeError } = await supabase
-    .from('response_universes')
-    .insert({
-      creator_id: userId,
-      name: `Universe for age ${ageRange[0]}-${ageRange[1]} and income ${incomeRange[0]}-${incomeRange[1]}`,
-      source: 'web_app',
-      description: 'Automatically created universe for query'
-    })
-    .select()
-    .single();
-
-  if (universeError) throw universeError;
-
-  const constraints = [
-    {
-      universe_id: universe.universe_id,
-      variable: 'PRTAGE',
-      operator: 'BETWEEN',
-      value: `${ageRange[0]},${ageRange[1]}`
-    },
-    {
-      universe_id: universe.universe_id,
-      variable: 'INCOME',
-      operator: 'BETWEEN',
-      value: `${incomeRange[0]},${incomeRange[1]}`
-    }
-  ];
-
-  const { error: constraintsError } = await supabase
-    .from('universe_constraints')
-    .insert(constraints);
-
-  if (constraintsError) throw constraintsError;
-
-  return universe.universe_id;
-}
 
 export const handleSubmit = async ({
   question,
@@ -110,120 +40,59 @@ export const handleSubmit = async ({
   setError(null);
 
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Authentication failed');
-    }
-
+    const user = await getCurrentUser();
+    
+    // Create item and universe if needed
     const itemId = await createItem(user.id, question);
-    let universeId = null;
-    
-    if (perspective === 'sample_americans') {
-      universeId = await createUniverse(user.id, ageRange, incomeRange);
-    }
+    const universeId = perspective === 'sample_americans' 
+      ? await createUniverse(user.id, ageRange, incomeRange)
+      : null;
 
-    console.log('Inserting query with data:', {
-      requester_id: user.id,
-      item_id: itemId,
+    // Create the query
+    const inserted = await createQuery({
+      userId: user.id,
+      itemId,
       model,
-      universe_id: universeId
+      universeId,
+      hiveSize
     });
-
-    const { data: inserted, error } = await supabase
-      .from('queries')
-      .insert({
-        item_id: itemId,
-        requester_id: user.id,
-        model,
-        temperature: 0.7,
-        max_tokens: 1000,
-        n_responses: hiveSize,
-        n_responses_per_respondent: 1,
-        universe_id: universeId,
-        credit_cost: 1,
-        execution_status: 'pending'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      const pgError = error as PostgrestError;
-      throw new Error(`Database error: ${pgError.message}`);
-    }
-    
-    if (!inserted) {
-      throw new Error('No data returned after insert');
-    }
 
     const queryId = inserted.query_id;
     setActiveStep(2);
     
+    // Poll for results
     let attempts = 0;
     const maxAttempts = 20;
-
     const interval = setInterval(async () => {
       attempts++;
       
       try {
-        const { data: qData, error: qError } = await supabase
-          .from('queries')
-          .select('execution_status, query_id')
-          .eq('query_id', queryId)
-          .single();
-
-        if (qError) {
-          clearInterval(interval);
-          throw new Error(`Status check error: ${qError.message}`);
-        }
-
-        if (!qData) {
-          clearInterval(interval);
-          throw new Error('Query not found');
-        }
+        const qData = await getQueryStatus(queryId);
 
         if (qData.execution_status === 'completed') {
-          const { data: rData, error: rError } = await supabase
-            .from('responses')
-            .select(`
-              response_id,
-              response_text,
-              respondent:respondent_id (
-                PRTAGE,
-                GESTFIPS
-              )
-            `)
-            .eq('query_id', queryId) as { data: ResponseWithRespondent[] | null; error: PostgrestError | null };
+          const responses = await getQueryResponses(queryId);
           
           clearInterval(interval);
-          
-          if (rError) {
-            throw new Error(`Response fetch error: ${rError.message}`);
-          }
-
-          if (!rData || rData.length === 0) {
-            throw new Error('No response data found');
-          }
-
-          setResults({ 
-            question, 
-            responses: rData.map(r => ({
-              response_text: r.response_text,
-              age: r.respondent?.PRTAGE || null,
-              state: r.respondent?.GESTFIPS?.toString() || 'Unknown',
-              perspective: perspective,
-              income: 0 // TODO: Add income data when available
-            }))
-          });
           setLoading(false);
+
+          const formattedResponses: ResponseData = {
+            question,
+            responses: responses.map(r => ({
+              perspective,
+              age: r.respondent?.PRTAGE ?? 0,
+              state: r.respondent?.GESTFIPS?.toString() ?? 'Unknown',
+              income: 0,
+              open_ended: r.response_text
+            }))
+          };
+
+          setResults(formattedResponses);
           setActiveStep(3);
         } else if (qData.execution_status === 'error') {
-          clearInterval(interval);
           throw new Error('Error processing query');
         }
 
         if (attempts >= maxAttempts) {
-          clearInterval(interval);
           throw new Error('Query processing timed out');
         }
       } catch (pollError) {
