@@ -1,14 +1,15 @@
 import { supabase } from '../components/SupabaseClient';
+import { ModelType } from '../config';
+import { ResponseType } from '../types';
 
 interface HandleSubmitParams {
   question: string;
-  responseTypes: string[];
+  responseTypes: ResponseType[];
   hiveSize: number;
   perspective: string;
   ageRange: [number, number];
   incomeRange: [number, number];
-  model: string;
-  userId: string;
+  model: ModelType;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setResults: (data: { question: string, responses: any[] } | null) => void;
@@ -24,10 +25,6 @@ export const handleSignOut = async () => {
   }
 };
 
-/**
- * Insert a record into llm_queries.
- * Then poll for results in llm_responses once status='completed'.
- */
 export const handleSubmit = async ({
   question,
   responseTypes,
@@ -36,7 +33,6 @@ export const handleSubmit = async ({
   ageRange,
   incomeRange,
   model,
-  userId,
   setLoading,
   setError,
   setResults,
@@ -50,78 +46,78 @@ export const handleSubmit = async ({
   setLoading(true);
   setError(null);
 
-  const { data: inserted, error } = await supabase
-    .from('llm_queries')
-    .insert({
-      requester_id: userId,
-      prompt: question,
-      model,
-      response_types: responseTypes,
-      hive_size: hiveSize,
-      perspective,
-      age_range: ageRange,
-      income_range: incomeRange
-    })
-    .select()
-    .single();
+  try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('User not authenticated');
 
-  if (error || !inserted) {
-    console.error('Error inserting llm_query:', error);
-    setError('Failed to submit query.');
-    setLoading(false);
-    return;
-  }
-
-  const queryId = inserted.query_id;
-  setActiveStep(2); // Move forward to a "waiting" step (3rd step maybe is Review & Submit, we keep consistent)
-  
-  let attempts = 0;
-  const maxAttempts = 20;
-
-  const interval = setInterval(async () => {
-    attempts++;
-    const { data: qData, error: qError } = await supabase
+    const { data: inserted, error } = await supabase
       .from('llm_queries')
-      .select('status, query_id')
-      .eq('query_id', queryId)
+      .insert({
+        requester_id: user.id,
+        prompt: question,
+        model,
+        response_types: responseTypes,
+        hive_size: hiveSize,
+        perspective,
+        age_range: ageRange,
+        income_range: incomeRange
+      })
+      .select()
       .single();
 
-    if (qError || !qData) {
-      console.error('Error fetching llm_query:', qError);
-      clearInterval(interval);
-      setError('Error checking query status.');
-      setLoading(false);
-      return;
+    if (error || !inserted) {
+      throw new Error(error?.message || 'Failed to submit query');
     }
 
-    if (qData.status === 'completed') {
-      const { data: rData, error: rError } = await supabase
-        .from('llm_responses')
-        .select('question, responses')
+    const queryId = inserted.query_id;
+    setActiveStep(2);
+    
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      const { data: qData, error: qError } = await supabase
+        .from('llm_queries')
+        .select('status, query_id')
         .eq('query_id', queryId)
         .single();
-      
-      clearInterval(interval);
-      setLoading(false);
 
-      if (rError || !rData) {
-        console.error('Error fetching llm_responses:', rError);
-        setError('Failed to fetch results.');
-        return;
+      if (qError || !qData) {
+        clearInterval(interval);
+        throw new Error(qError?.message || 'Error checking query status');
       }
 
-      setResults({ question: rData.question, responses: rData.responses });
-      setActiveStep(3); // Proceed to results step
-    } else if (qData.status === 'error' || qData.status === 'insufficient credits') {
-      clearInterval(interval);
-      setError('Error fetching responses or insufficient credits.');
-      setLoading(false);
-    }
+      if (qData.status === 'completed') {
+        const { data: rData, error: rError } = await supabase
+          .from('llm_responses')
+          .select('question, responses')
+          .eq('query_id', queryId)
+          .single();
+        
+        clearInterval(interval);
+        setLoading(false);
 
-    if (attempts >= maxAttempts) {
-      clearInterval(interval);
-      setError('Timed out waiting for responses.');
-      setLoading(false);
-    }
-  }, 3000);
+        if (rError || !rData) {
+          throw new Error(rError?.message || 'Failed to fetch results');
+        }
+
+        setResults({ question: rData.question, responses: rData.responses });
+        setActiveStep(3);
+      } else if (qData.status === 'error' || qData.status === 'insufficient_credits') {
+        clearInterval(interval);
+        throw new Error(qData.status === 'error' ? 'Error fetching responses' : 'Insufficient credits');
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        throw new Error('Timed out waiting for responses');
+      }
+    }, 3000);
+  } catch (error) {
+    console.error('Error in handleSubmit:', error);
+    setError(error.message || 'An unexpected error occurred');
+    setLoading(false);
+  }
 };

@@ -10,15 +10,15 @@ interface ModelSelectorProps {
 const ModelSelector: React.FC<ModelSelectorProps> = ({ model, setModel }) => {
   return (
     <FormControl fullWidth margin="normal">
-      <InputLabel id="model-select-label">GPT Model</InputLabel>
+      <InputLabel id="model-select-label">Model</InputLabel>
       <Select
         labelId="model-select-label"
         id="model-select"
         value={model}
-        label="GPT Model"
+        label="Model"
         onChange={(e) => setModel(e.target.value as ModelType)}
       >
-        {Object.keys(MODEL_MAP).map((modelKey) => (
+        {(Object.keys(MODEL_MAP) as ModelType[]).map((modelKey) => (
           <MenuItem key={modelKey} value={modelKey}>
             {modelKey}
           </MenuItem>
