@@ -1,7 +1,8 @@
 import { assertEquals } from "https://deno.land/std@0.207.0/assert/mod.ts";
-import { generatePrompt, parseResponse } from "../../functions/process-llm-query/index.ts";
+import { createClient } from '@supabase/supabase-js';
+import { generatePrompt, parseResponse, handleRequest } from "../../functions/process-llm-query/index.ts";
 
-// Test prompt generation
+// Helper function tests
 Deno.test("generatePrompt - open ended only", () => {
   const { systemPrompt, userPrompt } = generatePrompt(
     "What is your opinion on remote work?",
@@ -123,3 +124,74 @@ Deno.test("parseResponse - invalid Likert rating", () => {
     "Should reject invalid Likert rating"
   );
 });
+
+// New integration test with mocked OpenAI API
+Deno.test("handleRequest - integration test", async () => {
+    // Mock fetch for OpenAI API
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = stub(globalThis, "fetch", () => 
+      Promise.resolve(new Response(JSON.stringify({
+        choices: [{
+          message: {
+            content: "Response: This is a mock response.\nRating: 4"
+          }
+        }]
+      }), { status: 200 }))
+    );
+  
+    try {
+      const mockRequest = new Request("http://localhost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query_id: "test-id",
+          prompt: "test question",
+          response_types: ["open_ended", "likert"],
+          hive_size: 1,
+          perspective: "general_gpt",
+          model: "gpt-4"
+        })
+      });
+  
+      const mockEnv = {
+        SUPABASE_URL: "test_url",
+        SUPABASE_SERVICE_ROLE_KEY: "test_key",
+        OPENAI_API_KEY: "test_openai_key"
+      };
+  
+      const response = await handleRequest(mockRequest, mockEnv);
+      const data = await response.json();
+  
+      // Assert response structure
+      assertEquals(response.status, 200);
+      assertEquals(data.success, true);
+      assertEquals(data.responses_count, 1);
+  
+      // Verify OpenAI API was called with correct parameters
+      assertSpyCall(globalThis.fetch as any, 0, {
+        args: [
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer test_openai_key"
+            },
+            body: JSON.stringify({
+              model: "gpt-4",
+              messages: [
+                { role: "system", content: (globalThis.fetch as any).calls[0].args[1].body.messages[0].content },
+                { role: "user", content: (globalThis.fetch as any).calls[0].args[1].body.messages[1].content }
+              ],
+              temperature: 1.0,
+              max_tokens: 500
+            })
+          }
+        ]
+      });
+  
+    } finally {
+      // Restore original fetch
+      globalThis.fetch = originalFetch;
+    }
+  });

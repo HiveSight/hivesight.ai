@@ -161,7 +161,128 @@ async function handler(req: Request) {
   }
 }
 
-// Start the server if this is not a test environment
-if (import.meta.main) {
-  Deno.serve(handler);
+export async function handleRequest(req: Request, env = Deno.env.toObject()) {
+  try {
+    const {
+      query_id,
+      prompt,
+      response_types,
+      hive_size,
+      perspective,
+      model
+    } = await req.json() as RequestBody;
+
+    // Mockable dependencies
+    const supabaseClient = createClient(
+      env['SUPABASE_URL'] ?? '',
+      env['SUPABASE_SERVICE_ROLE_KEY'] ?? ''
+    );
+
+    const openaiKey = env['OPENAI_API_KEY'];
+    if (!openaiKey) {
+      throw new Error('OPENAI_API_KEY not set');
+    }
+
+    // Log details for debugging
+    console.log('Processing query in handleRequest:', { query_id, prompt, response_types, hive_size });
+
+    // Generate prompts
+    const { systemPrompt, userPrompt } = generatePrompt(prompt, response_types, perspective);
+
+    const responses = [];
+    for (let i = 0; i < hive_size; i++) {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: model || 'gpt-4', // Default to GPT-4 if model is not provided
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 1.0,
+          max_tokens: 500,
+        })
+      });
+
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.json();
+        throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await openaiResponse.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+
+      if (!content) {
+        throw new Error('No response content from OpenAI');
+      }
+
+      // Parse and collect the response
+      const parsedResponse = parseResponse(content, response_types);
+      responses.push({
+        query_id,
+        response_text: parsedResponse.open_ended || '',
+        likert_rating: parsedResponse.likert,
+        created_at: new Date().toISOString()
+      });
+
+      console.log('Generated response in handleRequest:', parsedResponse);
+    }
+
+    // Mockable database operations
+    const { error: insertError } = await supabaseClient
+      .from('responses')
+      .insert(responses);
+
+    if (insertError) {
+      throw new Error(`Failed to insert responses: ${insertError.message}`);
+    }
+
+    const { error: updateError } = await supabaseClient
+      .from('queries')
+      .update({ execution_status: 'completed' })
+      .eq('query_id', query_id);
+
+    if (updateError) {
+      throw new Error(`Failed to update query status: ${updateError.message}`);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      responses_count: responses.length
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error('Error in handleRequest:', error);
+    return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500 });
+  }
+}
+
+// Export a mockable version of the handler
+export function createHandler(mockDependencies: {
+  supabaseClient?: ReturnType<typeof createClient>;
+  fetch?: typeof fetch;
+  env?: Record<string, string>;
+}) {
+  return async (req: Request) => {
+    const env = mockDependencies.env || Deno.env.toObject();
+    const supabaseClient = mockDependencies.supabaseClient || createClient(
+      env['SUPABASE_URL'] ?? '',
+      env['SUPABASE_SERVICE_ROLE_KEY'] ?? ''
+    );
+    const fetchFn = mockDependencies.fetch || fetch;
+
+    // Replace the fetch function and Supabase client for mocking
+    return handleRequest(req, {
+      ...env,
+      SUPABASE_CLIENT: supabaseClient,
+      FETCH_FN: fetchFn,
+    });
+  };
 }
