@@ -17,6 +17,16 @@ interface HandleSubmitParams {
   setActiveStep: (step: number) => void;
 }
 
+// Add interface for response data
+interface ResponseWithRespondent {
+  response_id: string;
+  response_text: string;
+  respondent: {
+    PRTAGE: number;
+    GESTFIPS: number;
+  } | null;
+}
+
 export const handleSignOut = async () => {
   try {
     const { error } = await supabase.auth.signOut();
@@ -41,7 +51,6 @@ async function createItem(userId: string, question: string) {
 }
 
 async function createUniverse(userId: string, ageRange: [number, number], incomeRange: [number, number]) {
-  // First create the universe
   const { data: universe, error: universeError } = await supabase
     .from('response_universes')
     .insert({
@@ -55,7 +64,6 @@ async function createUniverse(userId: string, ageRange: [number, number], income
 
   if (universeError) throw universeError;
 
-  // Then add the constraints
   const constraints = [
     {
       universe_id: universe.universe_id,
@@ -102,13 +110,11 @@ export const handleSubmit = async ({
   setError(null);
 
   try {
-    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       throw new Error('Authentication failed');
     }
 
-    // Create item and universe if needed
     const itemId = await createItem(user.id, question);
     let universeId = null;
     
@@ -182,12 +188,12 @@ export const handleSubmit = async ({
             .select(`
               response_id,
               response_text,
-              respondents(
+              respondent:respondent_id (
                 PRTAGE,
                 GESTFIPS
               )
             `)
-            .eq('query_id', queryId);
+            .eq('query_id', queryId) as { data: ResponseWithRespondent[] | null; error: PostgrestError | null };
           
           clearInterval(interval);
           
@@ -199,15 +205,14 @@ export const handleSubmit = async ({
             throw new Error('No response data found');
           }
 
-          // Format the responses to match expected structure
           setResults({ 
             question, 
             responses: rData.map(r => ({
               response_text: r.response_text,
-              age: r.respondents?.PRTAGE || null,
-              state: r.respondents?.GESTFIPS?.toString() || 'Unknown',
-              // Add other fields as needed
-              perspective: perspective
+              age: r.respondent?.PRTAGE || null,
+              state: r.respondent?.GESTFIPS?.toString() || 'Unknown',
+              perspective: perspective,
+              income: 0 // TODO: Add income data when available
             }))
           });
           setLoading(false);
