@@ -1,5 +1,7 @@
+// supabase/tests/functions/process-llm-query.unit.test.ts
+
 import { assertEquals } from "https://deno.land/std@0.207.0/assert/mod.ts";
-import { generatePrompt, parseResponse } from "../../functions/process-llm-query/index.ts";
+import { generatePrompt, parseResponse } from "../../functions/process-llm-query/prompt.ts";
 
 Deno.test("generatePrompt - open ended only", () => {
   const { systemPrompt, userPrompt } = generatePrompt(
